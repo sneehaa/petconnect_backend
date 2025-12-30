@@ -42,6 +42,7 @@ app.get("/test", (req,res) => {
 
 //creating user routes
 app.use('/api/user', require('./routes/userRoutes'))
+app.use('/api/business', require('./routes/businessRoutes'))
 
 
 // defining port
