@@ -35,10 +35,17 @@ const BusinessSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    documents: {
+      type: [String],
+      default: [],
+    },
     businessStatus: {
       type: String,
       enum: ["Unverified", "Pending", "Approved", "Rejected"],
       default: "Unverified",
+    },
+    rejectionReason: {
+      type: String,
     },
   },
   {
