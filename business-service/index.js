@@ -40,13 +40,11 @@ app.get("/test", (req,res) => {
     res.status(200).send("Hello");
 })
 
-//creating user routes
 app.use('/api/business', require('./routes/business.routes'))
 
 
 // defining port
 const PORT = process.env.PORT;
-// run the server
 app.listen(PORT, ()=>{
     console.log(`Server is running on port ${PORT}`)
 })
