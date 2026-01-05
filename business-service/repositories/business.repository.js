@@ -1,4 +1,4 @@
-const Business = require("./business.model");
+const Business = require("../models/business.model");
 
 class BusinessRepository {
   create(data) {

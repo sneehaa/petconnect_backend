@@ -1,7 +1,8 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const businessRepo = require("./business.repository");
-const Pet = require("../models/petModel");
+const businessRepo = require("../repositories/business.repository");
+const Pet = require("../models/business.model");
+const axios = require("axios");
 
 class BusinessService {
   // Register a new business
@@ -23,8 +24,10 @@ class BusinessService {
     const business = await businessRepo.findByUsername(username);
     if (!business) throw new Error("Business not found");
 
-    if (business.businessStatus === "PENDING") throw new Error("Business not approved yet");
-    if (business.businessStatus === "REJECTED") throw new Error("Business registration rejected");
+    if (business.businessStatus === "PENDING")
+      throw new Error("Business not approved yet");
+    if (business.businessStatus === "REJECTED")
+      throw new Error("Business registration rejected");
 
     const matched = await bcrypt.compare(password, business.password);
     if (!matched) throw new Error("Invalid credentials");
@@ -43,9 +46,10 @@ class BusinessService {
   async uploadDocuments(businessId, files) {
     const business = await businessRepo.findById(businessId);
     if (!business) throw new Error("Business not found");
-    if (business.businessStatus !== "PENDING") throw new Error("Cannot upload documents after review");
+    if (business.businessStatus !== "PENDING")
+      throw new Error("Cannot upload documents after review");
 
-    business.documents.push(...files.map(f => f.path));
+    business.documents.push(...files.map((f) => f.path));
     await businessRepo.update(business);
   }
 
@@ -53,7 +57,8 @@ class BusinessService {
   async approve(businessId) {
     const business = await businessRepo.findById(businessId);
     if (!business) throw new Error("Business not found");
-    if (business.businessStatus !== "PENDING") throw new Error("Business already reviewed");
+    if (business.businessStatus !== "PENDING")
+      throw new Error("Business already reviewed");
 
     business.businessStatus = "APPROVED";
     await businessRepo.update(business);
@@ -79,7 +84,6 @@ class BusinessService {
     return businessRepo.findApproved();
   }
 
-
   // Create / Update business profile (address, geo, adoptionPolicy)
   async createProfile(businessId, data) {
     const business = await businessRepo.findById(businessId);
@@ -91,7 +95,10 @@ class BusinessService {
       address: data.address,
       phoneNumber: data.phoneNumber,
       adoptionPolicy: data.adoptionPolicy,
-      location: { type: "Point", coordinates: [Number(data.longitude), Number(data.latitude)] },
+      location: {
+        type: "Point",
+        coordinates: [Number(data.longitude), Number(data.latitude)],
+      },
     });
 
     await businessRepo.update(business);
@@ -104,7 +111,10 @@ class BusinessService {
 
     // Merge updates
     if (data.longitude !== undefined && data.latitude !== undefined) {
-      data.location = { type: "Point", coordinates: [Number(data.longitude), Number(data.latitude)] };
+      data.location = {
+        type: "Point",
+        coordinates: [Number(data.longitude), Number(data.latitude)],
+      };
       delete data.longitude;
       delete data.latitude;
     }
@@ -117,9 +127,13 @@ class BusinessService {
   async deleteBusiness(businessId) {
     const business = await businessRepo.findById(businessId);
     if (!business) throw new Error("Business not found");
-
-    // Delete all pets associated
-    await Pet.deleteMany({ shelter: business._id });
+    try {
+      await axios.delete(
+        `${process.env.PET_SERVICE_URL}/business/${businessId}`
+      );
+    } catch (err) {
+      console.warn("Failed to delete pets in Pet-Service:", err.message);
+    }
 
     await businessRepo.delete(businessId);
   }

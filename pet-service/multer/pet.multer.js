@@ -5,11 +5,13 @@ const fs = require("fs");
 const uploadDir = path.join(__dirname, "uploads", "pets");
 
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('Upload directory created successfully:', uploadDir);
 }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    // The directory is guaranteed to exist now
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {

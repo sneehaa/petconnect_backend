@@ -1,4 +1,4 @@
-const businessService = require("./business.service");
+const businessService = require("../services/business.service");
 
 // Register a new business
 exports.registerBusiness = async (req, res) => {

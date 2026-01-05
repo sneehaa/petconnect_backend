@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const petController = require("../controller/pet.controller");
-const { authGuard } = require("../middleware/auth");
+const { authGuard } = require("../middleware/authGuard");
+const uploadPetImages = require("../multer/pet.multer");
 
 // Public routes
 router.get("/business/:businessId", petController.getPetsByBusiness);
