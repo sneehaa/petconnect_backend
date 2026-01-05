@@ -1,0 +1,104 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672" 
+      - "15672:15672" 
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  email-service: 
+    build: ./email-service
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - EMAIL_USER=adhikarisneha0001@gmail.com
+      - EMAIL_PASS=tgdn wowg ojaa ekxf
+    volumes:
+      - ./email-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "src/index.js"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  wallet-service:
+    build: ./wallet-service
+    ports:
+      - "5503:5503"
+    environment:
+      - MONGO_URI=mongodb+srv://adhikarisneha0001:PaRFqCfBsTo6AlIh@cluster0.avtijip.mongodb.net/
+      - HOTEL_OWNER_ID=6898793f7d66b86f2311d5d5
+      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_EXCHANGE=booking_exchange
+    volumes:
+      - ./wallet-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+
+  booking-service:
+    build: ./booking-service
+    ports:
+      - "5502:5502"
+    environment:
+      - MONGO_URI=mongodb+srv://adhikarisneha0001:PaRFqCfBsTo6AlIh@cluster0.avtijip.mongodb.net/
+      - HOTEL_SERVICE_URL=http://hotel-service:5501/api/hotel
+      - WALLET_SERVICE_URL=http://wallet-service:5503/api/wallet
+      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_EXCHANGE=booking_exchange
+    volumes:
+      - ./booking-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      
+  hotel-service:
+    build: ./hotel-service
+    ports:
+      - "5501:5501"
+    environment:
+      - MONGO_URI=mongodb+srv://adhikarisneha0001:PaRFqCfBsToAlIh@cluster0.avtijip.mongodb.net/
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_EXCHANGE=booking_exchange
+    volumes:
+      - ./hotel-service:/app
+    depends_on:
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "5500:5500"
+    environment:
+      - MONGO_URI=mongodb+srv://adhikarisneha0001:PaRFqCfBsToAlIh@cluster0.avtijip.mongodb.net/
+    volumes:
+      - ./user-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
