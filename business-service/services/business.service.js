@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const businessRepo = require("./business.repository");
+const Pet = require("../models/petModel");
 
 class BusinessService {
   // Register a new business
@@ -13,7 +14,7 @@ class BusinessService {
     return businessRepo.create({
       ...data,
       password: hashedPassword,
-      status: "PENDING",
+      businessStatus: "PENDING",
     });
   }
 
@@ -22,8 +23,8 @@ class BusinessService {
     const business = await businessRepo.findByUsername(username);
     if (!business) throw new Error("Business not found");
 
-    if (business.status === "PENDING") throw new Error("Business not approved yet");
-    if (business.status === "REJECTED") throw new Error("Business registration rejected");
+    if (business.businessStatus === "PENDING") throw new Error("Business not approved yet");
+    if (business.businessStatus === "REJECTED") throw new Error("Business registration rejected");
 
     const matched = await bcrypt.compare(password, business.password);
     if (!matched) throw new Error("Invalid credentials");
@@ -42,9 +43,9 @@ class BusinessService {
   async uploadDocuments(businessId, files) {
     const business = await businessRepo.findById(businessId);
     if (!business) throw new Error("Business not found");
-    if (business.status !== "PENDING") throw new Error("Cannot upload documents after review");
+    if (business.businessStatus !== "PENDING") throw new Error("Cannot upload documents after review");
 
-    business.documents.push(...files.map((f) => f.path));
+    business.documents.push(...files.map(f => f.path));
     await businessRepo.update(business);
   }
 
@@ -52,9 +53,9 @@ class BusinessService {
   async approve(businessId) {
     const business = await businessRepo.findById(businessId);
     if (!business) throw new Error("Business not found");
-    if (business.status !== "PENDING") throw new Error("Business already reviewed");
+    if (business.businessStatus !== "PENDING") throw new Error("Business already reviewed");
 
-    business.status = "APPROVED";
+    business.businessStatus = "APPROVED";
     await businessRepo.update(business);
   }
 
@@ -63,7 +64,7 @@ class BusinessService {
     const business = await businessRepo.findById(businessId);
     if (!business) throw new Error("Business not found");
 
-    business.status = "REJECTED";
+    business.businessStatus = "REJECTED";
     business.rejectionReason = reason;
     await businessRepo.update(business);
   }
@@ -76,6 +77,65 @@ class BusinessService {
   // Get all approved businesses
   async getApprovedBusinesses() {
     return businessRepo.findApproved();
+  }
+
+
+  // Create / Update business profile (address, geo, adoptionPolicy)
+  async createProfile(businessId, data) {
+    const business = await businessRepo.findById(businessId);
+    if (!business) throw new Error("Business not found");
+
+    Object.assign(business, {
+      name: data.name,
+      businessName: data.businessName,
+      address: data.address,
+      phoneNumber: data.phoneNumber,
+      adoptionPolicy: data.adoptionPolicy,
+      location: { type: "Point", coordinates: [Number(data.longitude), Number(data.latitude)] },
+    });
+
+    await businessRepo.update(business);
+    return business;
+  }
+
+  async updateProfile(businessId, data) {
+    const business = await businessRepo.findById(businessId);
+    if (!business) throw new Error("Business not found");
+
+    // Merge updates
+    if (data.longitude !== undefined && data.latitude !== undefined) {
+      data.location = { type: "Point", coordinates: [Number(data.longitude), Number(data.latitude)] };
+      delete data.longitude;
+      delete data.latitude;
+    }
+
+    Object.assign(business, data);
+    await businessRepo.update(business);
+    return business;
+  }
+
+  async deleteBusiness(businessId) {
+    const business = await businessRepo.findById(businessId);
+    if (!business) throw new Error("Business not found");
+
+    // Delete all pets associated
+    await Pet.deleteMany({ shelter: business._id });
+
+    await businessRepo.delete(businessId);
+  }
+
+  // Get nearby businesses (formerly shelters)
+  async getNearby(latitude, longitude) {
+    return businessRepo.findNearby(latitude, longitude);
+  }
+
+  // Get business details with pets
+  async getDetails(businessId) {
+    const business = await businessRepo.findById(businessId);
+    if (!business) throw new Error("Business not found");
+
+    const pets = await Pet.find({ shelter: business._id });
+    return { business, pets };
   }
 }
 

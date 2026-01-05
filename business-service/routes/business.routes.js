@@ -4,20 +4,21 @@ const businessController = require("../controller/business.controller");
 const { authGuard, authGuardAdmin } = require("../middleware/authGuard");
 const uploadBusinessDoc = require("../multer/business.multer");
 
-// Public
 router.post("/register", businessController.registerBusiness);
 router.post("/login", businessController.loginBusiness);
+router.get("/nearby", businessController.getNearbyBusinesses);
+router.get("/:businessId", businessController.getBusinessDetails);
 
-// Authenticated business routes
 router.post(
   "/upload-document/:businessId",
   authGuard,
   uploadBusinessDoc.array("documents"),
   businessController.uploadDocuments
 );
+router.put("/profile", authGuard, businessController.updateProfile);
+router.post("/profile", authGuard, businessController.createProfile);
 router.get("/my-business", authGuard, businessController.getMyBusiness);
 
-// Admin routes
 router.put(
   "/admin/approve/:businessId",
   authGuard,
@@ -35,6 +36,12 @@ router.get(
   authGuard,
   authGuardAdmin,
   businessController.getApprovedBusinesses
+);
+router.delete(
+  "/admin/:businessId",
+  authGuard,
+  authGuardAdmin,
+  businessController.deleteBusiness
 );
 
 module.exports = router;
