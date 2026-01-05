@@ -1,12 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { protect, authorize } = require("../middleware/auth");
-const adoptionController = require("../controllers/adoption.controller");
+const { authGuard, authGuardAdmin, authorize } = require("../middleware/authGuard");
+const adoptionController = require("../controller/adoption.controller");
 
 // User applies for adoption
 router.post(
   "/pets/:petId/adopt",
-  protect,
+  authGuard,
   authorize("user"),
   adoptionController.applyAdoption
 );
@@ -14,18 +14,18 @@ router.post(
 // User checks adoption status
 router.get(
   "/pets/:petId/status",
-  protect,
+  authGuard,
   authorize("user"),
   adoptionController.getAdoptionStatus
 );
 
 // User sees adoption history
-router.get("/history", protect, authorize("user"), adoptionController.getAdoptionHistory);
+router.get("/history", authGuard, authorize("user"), adoptionController.getAdoptionHistory);
 
 // Business sees adoption applications for their pet
 router.get(
   "/pets/:petId",
-  protect,
+  authGuard,
   authorize("business"),
   adoptionController.getPetAdoptions
 );
@@ -33,7 +33,7 @@ router.get(
 // Business approves/rejects adoption
 router.put(
   "/:adoptionId/status",
-  protect,
+  authGuard,
   authorize("business"),
   adoptionController.updateAdoptionStatus
 );
