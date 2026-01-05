@@ -39,7 +39,7 @@ class BusinessRepository {
           distanceMultiplier: 0.001,
         },
       },
-      { $match: { businessStatus: "APPROVED" } },
+      { $match: { businessStatus: "Approved" } },
     ]);
   }
 }

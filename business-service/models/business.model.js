@@ -43,7 +43,8 @@ const BusinessSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      default: "Business",
+      enum: ["BUSINESS"],
+      default: "BUSINESS",
     },
     businessVerified: {
       type: Boolean,

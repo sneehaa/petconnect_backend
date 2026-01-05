@@ -1,45 +1,47 @@
 const express = require("express");
 const router = express.Router();
 const businessController = require("../controller/business.controller");
-const { authGuard, authGuardAdmin } = require("../middleware/authGuard");
+const {
+  authGuardBusiness,
+  authGuardAdmin,
+} = require("../middleware/authGuard");
 const uploadBusinessDoc = require("../multer/business.multer");
 
+// PUBLIC
 router.post("/register", businessController.registerBusiness);
 router.post("/login", businessController.loginBusiness);
 router.get("/nearby", businessController.getNearbyBusinesses);
 router.get("/:businessId", businessController.getBusinessDetails);
 
+// AUTHENTICATED BUSINESS
+router.get("/me", authGuardBusiness, businessController.getMyBusiness);
+router.post("/profile", authGuardBusiness, businessController.createProfile);
+router.put("/profile", authGuardBusiness, businessController.updateProfile);
 router.post(
-  "/upload-document/:businessId",
-  authGuard,
+  "/documents",
+  authGuardBusiness,
   uploadBusinessDoc.array("documents"),
   businessController.uploadDocuments
 );
-router.put("/profile", authGuard, businessController.updateProfile);
-router.post("/profile", authGuard, businessController.createProfile);
-router.get("/my-business", authGuard, businessController.getMyBusiness);
 
+// ADMIN
 router.put(
   "/admin/approve/:businessId",
-  authGuard,
   authGuardAdmin,
   businessController.approveBusiness
 );
 router.put(
   "/admin/reject/:businessId",
-  authGuard,
   authGuardAdmin,
   businessController.rejectBusiness
 );
 router.get(
   "/admin/approved",
-  authGuard,
   authGuardAdmin,
   businessController.getApprovedBusinesses
 );
 router.delete(
   "/admin/:businessId",
-  authGuard,
   authGuardAdmin,
   businessController.deleteBusiness
 );

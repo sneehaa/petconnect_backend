@@ -8,6 +8,6 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 5501
+EXPOSE 5502
 
 CMD ["npx", "nodemon", "--legacy-watch", "index.js"]
