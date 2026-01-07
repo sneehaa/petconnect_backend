@@ -9,11 +9,20 @@ class BusinessService {
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    return businessRepo.create({
+    const business = await businessRepo.create({
       ...data,
       password: hashedPassword,
+      role: "BUSINESS",
       businessStatus: "Pending",
     });
+
+    const tempToken = jwt.sign(
+      { id: business._id, type: "TEMP" },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    return { business, tempToken };
   }
 
   async login(username, password) {
@@ -45,14 +54,17 @@ class BusinessService {
   }
 
   async uploadDocuments(businessId, files) {
-    const business = await businessRepo.findById(businessId);
-    if (!business) throw new Error("Business not found");
-    if (business.businessStatus !== "Pending")
-      throw new Error("Cannot upload documents after review");
+  const business = await businessRepo.findById(businessId);
+  if (!business) throw new Error("Business not found");
+  if (business.businessStatus !== "Pending")
+    throw new Error("Cannot upload documents after review");
 
-    business.documents.push(...files.map((f) => f.path));
-    await businessRepo.update(business);
-  }
+  // Each file has a path, Multer provides `file.path`
+  const filePaths = files.map(f => f.path);
+  business.documents.push(...filePaths);
+  await businessRepo.update(business);
+}
+
 
   async createProfile(businessId, data) {
     const business = await businessRepo.findById(businessId);

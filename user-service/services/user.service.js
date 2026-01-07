@@ -47,16 +47,23 @@ class UserService {
     await otpRepo.deleteById(record._id);
   }
 
-  async register(data) {
-    const exists = await userRepo.findByEmail(data.email);
-    if (exists) throw new Error("Email already exists");
+async register(data) {
+  const exists = await userRepo.findByEmail(data.email);
+  if (exists) throw new Error("Email already exists");
 
-    data.password = await bcrypt.hash(data.password, 10);
-    return userRepo.create(data);
+  data.password = await bcrypt.hash(data.password, 10);
+  if (data.isAdmin) {
+    data.role = "Admin";
+  } else {
+    data.role = "User";
   }
 
-  async login(username, password) {
-    const user = await userRepo.findByUsername(username);
+  return userRepo.create(data);
+}
+
+
+  async login(email, password) {
+    const user = await userRepo.findByEmail(email);
     if (!user) throw new Error("User not found");
 
     const matched = await bcrypt.compare(password, user.password);

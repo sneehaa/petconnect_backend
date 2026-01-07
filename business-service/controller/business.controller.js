@@ -3,10 +3,19 @@ const businessService = require("../services/business.service");
 // PUBLIC
 exports.registerBusiness = async (req, res) => {
   try {
-    const business = await businessService.register(req.body);
-    res.status(201).json({ success: true, business });
+    const { business, tempToken } = await businessService.register(req.body);
+
+    res.status(201).json({
+      success: true,
+      message: "Business Registered Successfully",
+      business,
+      tempToken,
+    });
   } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
+    res.status(400).json({
+      success: false,
+      message: e.message,
+    });
   }
 };
 
@@ -71,12 +80,22 @@ exports.updateProfile = async (req, res) => {
 
 exports.uploadDocuments = async (req, res) => {
   try {
-    await businessService.uploadDocuments(req.business.id, req.files);
-    res.json({ success: true, message: "Documents uploaded" });
+    const files = req.file ? [req.file] : [];
+
+    await businessService.uploadDocuments(req.business.id, files);
+
+    res.json({
+      success: true,
+      message: "Documents uploaded successfully",
+    });
   } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
+    res.status(400).json({
+      success: false,
+      message: e.message,
+    });
   }
 };
+
 
 // ADMIN
 exports.approveBusiness = async (req, res) => {

@@ -21,7 +21,7 @@ exports.register = async (req, res) => {
 exports.loginUser = async (req, res) => {
   try {
     const data = await userService.login(
-      req.body.username,
+      req.body.email,
       req.body.password
     );
     res.json({ success: true, ...data });
