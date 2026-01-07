@@ -46,10 +46,6 @@ const BusinessSchema = new mongoose.Schema(
       enum: ["BUSINESS"],
       default: "BUSINESS",
     },
-    businessVerified: {
-      type: Boolean,
-      default: false,
-    },
     documents: {
       type: [String],
       default: [],

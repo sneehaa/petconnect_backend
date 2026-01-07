@@ -21,7 +21,7 @@ exports.registerBusiness = async (req, res) => {
 
 exports.loginBusiness = async (req, res) => {
   try {
-    const data = await businessService.login(req.body.username, req.body.password);
+    const data = await businessService.login(req.body.email, req.body.password);
     res.json({ success: true, ...data });
   } catch (e) {
     res.status(401).json({ success: false, message: e.message });

@@ -9,8 +9,8 @@ class BusinessRepository {
     return Business.findById(id);
   }
 
-  findByUsername(username) {
-    return Business.findOne({ username });
+  findByUsername(email) {
+    return Business.findOne({ email });
   }
 
   findByUser(userId) {
@@ -18,7 +18,7 @@ class BusinessRepository {
   }
 
   findApproved() {
-    return Business.find({ businessStatus: "APPROVED" });
+    return Business.find({ businessStatus: "Approved" });
   }
 
   update(business) {

@@ -16,7 +16,7 @@ router.get("/:businessId", businessController.getBusinessDetails);
 
 router.get("/me", authGuardBusiness, businessController.getMyBusiness);
 router.post("/profile", authGuardBusiness, businessController.createProfile);
-router.put("/profile", authGuardBusiness, businessController.updateProfile);
+router.put("/update-profile", authGuardBusiness, businessController.updateProfile);
 
 router.post(
   "/upload-documents",

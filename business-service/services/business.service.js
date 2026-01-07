@@ -25,17 +25,31 @@ class BusinessService {
     return { business, tempToken };
   }
 
-  async login(username, password) {
-    const business = await businessRepo.findByUsername(username);
+  async login(email, password) {
+    const business = await businessRepo.findByUsername(email);
+
     if (!business) throw new Error("Business not found");
-
-    if (business.businessStatus === "Pending")
-      throw new Error("Business not approved yet");
-    if (business.businessStatus === "Rejected")
-      throw new Error("Business registration rejected");
-
     const matched = await bcrypt.compare(password, business.password);
     if (!matched) throw new Error("Invalid credentials");
+    
+    if (business.businessStatus === "Pending") {
+      if (!business.documents || business.documents.length === 0) {
+        throw new Error(
+          "Please upload your verification documents to complete registration"
+        );
+      } else {
+        throw new Error(
+          "Your business registration is pending admin approval. Please wait for verification."
+        );
+      }
+    }
+    if (business.businessStatus === "Rejected") {
+      const reason = business.rejectionReason || "No reason provided";
+      throw new Error(`Business registration rejected. Reason: ${reason}`);
+    }
+    if (business.businessStatus !== "Approved") {
+      throw new Error("Business account is not active");
+    }
 
     const token = jwt.sign(
       { id: business._id, role: business.role },
@@ -54,17 +68,37 @@ class BusinessService {
   }
 
   async uploadDocuments(businessId, files) {
-  const business = await businessRepo.findById(businessId);
-  if (!business) throw new Error("Business not found");
-  if (business.businessStatus !== "Pending")
-    throw new Error("Cannot upload documents after review");
+    const business = await businessRepo.findById(businessId);
+    if (!business) throw new Error("Business not found");
 
-  // Each file has a path, Multer provides `file.path`
-  const filePaths = files.map(f => f.path);
-  business.documents.push(...filePaths);
-  await businessRepo.update(business);
-}
+    if (business.businessStatus === "Approved") {
+      throw new Error("Business already approved. Cannot upload documents.");
+    }
 
+    if (business.businessStatus === "Rejected") {
+      throw new Error(
+        "Business registration rejected. Please contact support."
+      );
+    }
+
+    if (!files || files.length === 0) {
+      throw new Error("No files provided");
+    }
+
+    // Each file has a path, Multer provides `file.path`
+    const filePaths = files.map((f) => f.path);
+
+    // Replace existing documents or add new ones
+    business.documents = [...(business.documents || []), ...filePaths];
+
+    await businessRepo.update(business);
+
+    return {
+      message:
+        "Documents uploaded successfully. Your business is now pending admin approval.",
+      documentsCount: business.documents.length,
+    };
+  }
 
   async createProfile(businessId, data) {
     const business = await businessRepo.findById(businessId);
