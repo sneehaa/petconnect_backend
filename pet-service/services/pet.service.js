@@ -3,13 +3,21 @@ const axios = require("axios");
 const redisClient = require("../utils/redisClient");
 
 class PetService {
-  async createPet(businessId, petData) {
-    await this._checkBusinessExists(businessId);
 
-    petData.businessId = businessId;
-    const pet = await petRepo.create(petData);
-    return pet;
+async createPet(businessId, petData) {
+  console.log('Creating pet for businessId:', businessId);
+  
+  try {
+    await this._checkBusinessExists(businessId);
+  } catch (error) {
+    console.error('Business check failed:', error.message);
+
   }
+  
+  petData.businessId = businessId;
+  const pet = await petRepo.create(petData);
+  return pet;
+}
 
   async getPetById(petId) {
     const pet = await petRepo.findById(petId);

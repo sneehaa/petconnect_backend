@@ -1,23 +1,39 @@
 const express = require("express");
 const router = express.Router();
+
 const petController = require("../controller/pet.controller");
 const { authGuard } = require("../middleware/authGuard");
 const uploadPetImages = require("../multer/pet.multer");
 
-// Public routes
-router.get("/business/:businessId", petController.getPetsByBusiness);
-router.get("/:id", petController.getPetDetail);
+
+// Get all pets
 router.get("/", petController.getAllPets);
 
-// Authenticated business routes
+// Get pet by ID
+router.get("/:id", petController.getPetDetail);
+
+// Get pets by business
+router.get("/business/:businessId", petController.getPetsByBusiness);
+
+// Create pet (with images)
 router.post(
   "/",
   authGuard,
   uploadPetImages.array("photos", 5),
   petController.createPet
 );
-router.post("/", authGuard, petController.createPet);
-router.put("/:id", authGuard, petController.updatePet);
-router.delete("/:id", authGuard, petController.deletePet);
+
+router.put(
+  "/:id",
+  authGuard,
+  uploadPetImages.array("photos", 5),
+  petController.updatePet
+);
+
+router.delete(
+  "/:id",
+  authGuard,
+  petController.deletePet
+);
 
 module.exports = router;
