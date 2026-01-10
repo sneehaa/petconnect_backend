@@ -8,42 +8,40 @@ services:
 
   user-service:
     build: ./user-service
+    env_file:
+      - ./.env
     ports:
-      - "5500:5500"
-    environment:
-      - MONGO_URI=mongodb+srv://adhikarisneha0001:PaRFqCfBsToAlIh@cluster0.avtijip.mongodb.net/
-      - REDIS_URL=redis://redis:6379
+      - "${PORT_USER}:${PORT_USER}"
     volumes:
       - ./user-service:/app
+      - /app/node_modules
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
 
   business-service:
     build: ./business-service
+    env_file:
+      - ./.env
     ports:
-      - "5501:5501"
-    environment:
-      - MONGO_URI=mongodb+srv://adhikarisneha0001:PaRFqCfBsToAlIh@cluster0.avtijip.mongodb.net/
-      - REDIS_URL=redis://redis:6379
-      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - "${PORT_BUSINESS}:${PORT_BUSINESS}"
     volumes:
       - ./business-service:/app
+      - /app/node_modules
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
-      - user-service 
+      - user-service
 
   pet-service:
     build: ./pet-service
+    env_file:
+      - ./.env
     ports:
-      - "5502:5502"
-    environment:
-      - MONGO_URI=mongodb+srv://adhikarisneha0001:PaRFqCfBsToAlIh@cluster0.avtijip.mongodb.net/
-      - REDIS_URL=redis://redis:6379
-      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
+      - "${PORT_PET}:${PORT_PET}"
     volumes:
       - ./pet-service:/app
+      - /app/node_modules
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
@@ -51,15 +49,13 @@ services:
 
   adoption-service:
     build: ./adoption-service
+    env_file:
+      - ./.env
     ports:
-      - "5503:5503"
-    environment:
-      - MONGO_URI=mongodb+srv://adhikarisneha0001:PaRFqCfBsToAlIh@cluster0.avtijip.mongodb.net/
-      - REDIS_URL=redis://redis:6379
-      - PET_SERVICE_URL=http://pet-service:5502/api/pets
-      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - "${PORT_ADOPTION}:${PORT_ADOPTION}"
     volumes:
       - ./adoption-service:/app
+      - /app/node_modules
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
