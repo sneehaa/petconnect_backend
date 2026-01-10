@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { authGuard, authGuardAdmin, authorize } = require("../middleware/authGuard");
-const adoptionController = require("../controller/adoption.controller");
+const adoptionController = require("../controllers/adoption.controller");
 
 // User applies for adoption
 router.post(

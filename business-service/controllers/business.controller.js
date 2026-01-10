@@ -1,6 +1,8 @@
 const businessService = require("../services/business.service");
 
-// PUBLIC
+// =======================
+// PUBLIC ROUTES
+// =======================
 exports.registerBusiness = async (req, res) => {
   try {
     const { business, tempToken } = await businessService.register(req.body);
@@ -12,10 +14,7 @@ exports.registerBusiness = async (req, res) => {
       tempToken,
     });
   } catch (e) {
-    res.status(400).json({
-      success: false,
-      message: e.message,
-    });
+    res.status(400).json({ success: false, message: e.message });
   }
 };
 
@@ -50,7 +49,9 @@ exports.getBusinessDetails = async (req, res) => {
   }
 };
 
+// =======================
 // AUTHENTICATED BUSINESS
+// =======================
 exports.getMyBusiness = async (req, res) => {
   try {
     const business = await businessService.getById(req.business.id);
@@ -81,23 +82,16 @@ exports.updateProfile = async (req, res) => {
 exports.uploadDocuments = async (req, res) => {
   try {
     const files = req.file ? [req.file] : [];
-
     await businessService.uploadDocuments(req.business.id, files);
-
-    res.json({
-      success: true,
-      message: "Documents uploaded successfully",
-    });
+    res.json({ success: true, message: "Documents uploaded successfully" });
   } catch (e) {
-    res.status(400).json({
-      success: false,
-      message: e.message,
-    });
+    res.status(400).json({ success: false, message: e.message });
   }
 };
 
-
-// ADMIN
+// =======================
+// ADMIN ROUTES
+// =======================
 exports.approveBusiness = async (req, res) => {
   try {
     await businessService.approve(req.params.businessId);
@@ -129,6 +123,45 @@ exports.deleteBusiness = async (req, res) => {
   try {
     await businessService.deleteBusiness(req.params.businessId);
     res.json({ success: true, message: "Business deleted successfully" });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+// =======================
+// BUSINESS → ADOPTION
+// =======================
+
+// Approve adoption (business call)
+exports.approveAdoption = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+
+    const result = await businessService.approveAdoption(req.business.id, applicationId);
+
+    res.status(200).json({
+      success: true,
+      message: "Adoption approved successfully",
+      application: result
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+// Reject adoption (business call)
+exports.rejectAdoption = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+    const { reason } = req.body;
+
+    const result = await businessService.rejectAdoption(req.business.id, applicationId, reason);
+
+    res.status(200).json({
+      success: true,
+      message: "Adoption rejected successfully",
+      application: result
+    });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }

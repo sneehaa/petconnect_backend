@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const petController = require("../controller/pet.controller");
+const petController = require("../controllers/pet.controller");
 const { authGuard } = require("../middleware/authGuard");
 const uploadPetImages = require("../multer/pet.multer");
 

@@ -1,63 +1,96 @@
-version: "3.8"
+version: "3.9"
 
 services:
+  # ===== Redis =====
   redis:
     image: redis:7-alpine
+    container_name: redis
     ports:
       - "6379:6379"
+    restart: always
 
+  # ===== User Service =====
   user-service:
-    build: ./user-service
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
     env_file:
       - ./.env
     ports:
-      - "${PORT_USER}:${PORT_USER}"
+      - "${PORT_USER:-5500}:${PORT_USER:-5500}"
     volumes:
       - ./user-service:/app
-      - /app/node_modules
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
+    restart: always
 
+  # ===== Business Service =====
   business-service:
-    build: ./business-service
+    build:
+      context: ./business-service
+      dockerfile: Dockerfile
     env_file:
       - ./.env
     ports:
-      - "${PORT_BUSINESS}:${PORT_BUSINESS}"
+      - "${PORT_BUSINESS:-5501}:${PORT_BUSINESS:-5501}"
     volumes:
       - ./business-service:/app
-      - /app/node_modules
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
       - user-service
+    restart: always
 
+  # ===== Pet Service =====
   pet-service:
-    build: ./pet-service
+    build:
+      context: ./pet-service
+      dockerfile: Dockerfile
     env_file:
       - ./.env
     ports:
-      - "${PORT_PET}:${PORT_PET}"
+      - "${PORT_PET:-5502}:${PORT_PET:-5502}"
     volumes:
       - ./pet-service:/app
-      - /app/node_modules
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
       - business-service
+    restart: always
 
+  # ===== Adoption Service =====
   adoption-service:
-    build: ./adoption-service
+    build:
+      context: ./adoption-service
+      dockerfile: Dockerfile
     env_file:
       - ./.env
     ports:
-      - "${PORT_ADOPTION}:${PORT_ADOPTION}"
+      - "${PORT_ADOPTION:-5503}:${PORT_ADOPTION:-5503}"
     volumes:
       - ./adoption-service:/app
-      - /app/node_modules
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
       - pet-service
       - user-service
+    restart: always
+
+  # ===== User Dashboard Service =====
+  user-dashboard-service:
+    build:
+      context: ./user-dashboard-service
+      dockerfile: Dockerfile
+    env_file:
+      - ./.env
+    ports:
+      - "${PORT_USER_DASHBOARD:-5600}:${PORT_USER_DASHBOARD:-5600}"
+    volumes:
+      - ./user-dashboard-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      - redis
+      - user-service
+      - adoption-service
+    restart: always
