@@ -44,7 +44,7 @@ app.get("/test", (req,res) => {
 app.use('/api/user', require('./routes/user.routes'));
 
 // defining port with fallback
-const PORT = process.env.PORT || process.env.PORT_USER || 5500; // fallback to 5500 for user-service
+const PORT = process.env.PORT
 
 // run the server
 app.listen(PORT, ()=>{

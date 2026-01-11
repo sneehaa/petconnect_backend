@@ -1,23 +1,9 @@
-// db.js
-const mongoose = require('mongoose');
+const mongoose = require ('mongoose');
 
-const connectDB = async () => {
-    const uri = process.env.MONGO_URI; // <-- must match .env exactly
-    if (!uri) {
-        console.error("❌ Database connection error: MongoDB URI is not defined. Please check your .env file.");
-        process.exit(1); // stop the app
-    }
-
-    try {
-        await mongoose.connect(uri, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
-        console.log("✅ Connected to MongoDB");
-    } catch (err) {
-        console.error("❌ Database connection error:", err.message);
-        process.exit(1);
-    }
-};
+const connectDB = () => {
+    mongoose.connect(process.env.DB_URL).then(() => {
+        console.log("Connected to Database")
+    })
+}
 
 module.exports = connectDB;

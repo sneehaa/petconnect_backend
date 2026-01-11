@@ -5,15 +5,15 @@ const connectDB = require('./database/db');
 const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
 
-// dotenv config
-dotenv.config();
 
-// Making express app
 const app = express();
 
-// cloudinary config
+
+dotenv.config();
+
+
 cloudinary.config({ 
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+  cloud_name: process.env.CLOUD_NAME, 
   api_key: process.env.CLOUDINARY_API_KEY, 
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
@@ -24,33 +24,29 @@ const corsOptions = {
     credentials: true,
     optionSuccessStatus: 200
 };
-app.use(cors(corsOptions));
+app.use(cors(corsOptions))
 
-// Accepting json data
+
+connectDB();
+
 app.use(express.json());
 
-// Accepting multipart/form-data
 app.use(express.urlencoded({ extended: true }));
 
-// MongoDB connection
-const mongoUri = process.env.MONGO_URI;
-connectDB(mongoUri);
 
-// creating test route
-app.get("/test", (req, res) => {
-    res.status(200).send("Hello from Adoption Service!");
-});
+app.get("/test", (req,res) => {
+    res.status(200).send("Hello");
+})
 
-// creating adoption routes
-app.use('/api/adoption', require('./routes/adoption.routes'));
 
-// defining port
-const PORT = process.env.PORT_ADOPTION || 5503;
+app.use('/api/adoption', require('./routes/adoption.routes'))
 
-// run the server
-app.listen(PORT, () => {
-    console.log(`Adoption Service is running on port ${PORT}`);
-});
+
+const PORT = process.env.PORT;
+
+app.listen(PORT, ()=>{
+    console.log(`Server is running on port ${PORT}`)
+})
 
 // exporting app
 module.exports = app;

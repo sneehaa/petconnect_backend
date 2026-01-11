@@ -7,49 +7,51 @@ const cors = require('cors');
 const path = require('path');
 const cloudinary = require('cloudinary').v2;
 
-// Load environment variables
-dotenv.config();
-
-// Check if MONGO_URI is defined
-if (!process.env.MONGO_URI) {
-    console.error('❌ MONGO_URI is not defined in .env. Please check your environment variables.');
-    process.exit(1);
-}
-
-// Connect to MongoDB
-connectDB(process.env.MONGO_URI);
-
 const app = express();
 
-// Cloudinary config
-if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-    console.warn('⚠️ Cloudinary env variables are missing. Image uploads may fail.');
-} else {
-    cloudinary.config({ 
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
-        api_key: process.env.CLOUDINARY_API_KEY, 
-        api_secret: process.env.CLOUDINARY_API_SECRET
-    });
-}
 
-// CORS
-app.use(cors({ origin: true, credentials: true }));
+dotenv.config();
 
-// Parse JSON & form-data
+
+cloudinary.config({ 
+  cloud_name: process.env.CLOUD_NAME, 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// cors config to accept request from frontend
+const corsOptions = {
+    origin: true,
+    credentials: true,
+    optionSuccessStatus: 200
+};
+app.use(cors(corsOptions))
+
+
+connectDB();
+
 app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
+
+
+app.get("/test", (req,res) => {
+    res.status(200).send("Hello");
+})
+
 
 // Serve uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
-app.use('/api/pets', require('./routes/pet.routes'));
+app.use('/api/pets', require('./routes/pet.routes'))
 
-// Test route
-app.get("/test", (req,res) => res.status(200).send("Hello"));
 
-// Start server
-const PORT = process.env.PORT || 5502;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+const PORT = process.env.PORT;
 
+app.listen(PORT, ()=>{
+    console.log(`Server is running on port ${PORT}`)
+})
+
+// exporting app
 module.exports = app;
+
