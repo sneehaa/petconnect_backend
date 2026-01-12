@@ -1,4 +1,4 @@
-const Notification = require("../models/notification.model");
+const Notification = require("../model/notification.model");
 
 class NotificationRepository {
   create(data) {

@@ -1,4 +1,4 @@
-const notificationService = require("../services/notification.service");
+const notificationService = require("../service/notification.service");
 
 exports.sendEmail = async (req, res) => {
   try {

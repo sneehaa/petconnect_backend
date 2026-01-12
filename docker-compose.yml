@@ -53,6 +53,34 @@ services:
       - user-service
       - business-service
 
+  # NOTIFICATION SERVICE SHOULD START FIRST
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports:
+      - "5505:5505"
+    environment:
+      - PORT=5505
+      - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
+      - EMAIL_USER=adhikarisneha0001@gmail.com
+      - EMAIL_PASS=koqycslmnunmthqn
+      - JWT_SECRET=SECRET
+      - CLOUDINARY_CLOUD_NAME=dnsijcpng
+      - CLOUDINARY_API_KEY=764798892284885
+      - CLOUDINARY_API_SECRET=Ffqi4kyPjcyZH7pKuvkOmjmwYWw
+      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
+      - PET_SERVICE_URL=http://pet-service:5502/api/pets
+      - PAYMENT_SERVICE_URL=http://payment-service:5504/api/payment
+    volumes:
+      - ./notification-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      - user-service
+      - business-service
+      - pet-service
+    # REMOVED adoption-service dependency
+
   adoption-service:
     build: ./adoption-service
     container_name: adoption-service
@@ -67,6 +95,7 @@ services:
       - USER_SERVICE_URL=http://user-service:5500/api/user
       - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
       - PET_SERVICE_URL=http://pet-service:5502/api/pets
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5505/api/notifications
     volumes:
       - ./adoption-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
@@ -74,6 +103,8 @@ services:
       - user-service
       - business-service
       - pet-service
+      - notification-service
+    # KEEP notification-service dependency
 
   payment-service:
     build: ./payment-service
@@ -97,7 +128,7 @@ services:
       - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
       - PET_SERVICE_URL=http://pet-service:5502/api/pets
       - ADOPTION_SERVICE_URL=http://adoption-service:5503/api/adoption
-      - PAYMENT_SERVICE_URL=http://payment-service:5504/api/payment
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5505/api/notifications
     volumes:
       - ./payment-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
@@ -107,3 +138,4 @@ services:
       - business-service
       - pet-service
       - adoption-service
+      - notification-service

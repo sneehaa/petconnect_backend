@@ -6,13 +6,17 @@ const ReceiptSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    userId: {
+      type: String,
+      required: true,
+    },
     receiptNumber: {
       type: String,
       unique: true,
       required: true,
     },
-    issuedTo: {
-      type: String,
+    amount: {
+      type: Number,
       required: true,
     },
     issuedAt: {

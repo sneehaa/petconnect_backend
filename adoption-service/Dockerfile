@@ -1,21 +1,17 @@
-# Use Node.js 18
 FROM node:18-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json first
+# Copy package files first for caching
 COPY package*.json ./
 
 # Install dependencies including redis
 RUN npm install
 
-# Copy the rest of the app
+# Copy the rest of the code
 COPY . .
 
-# Expose the port your app uses
-# Use environment variable PORT or default 5000
-EXPOSE ${PORT:-5000}
+# Expose port
+EXPOSE 5503
 
-# Start the app using nodemon (with legacy-watch for Docker)
 CMD ["npx", "nodemon", "--legacy-watch", "index.js"]

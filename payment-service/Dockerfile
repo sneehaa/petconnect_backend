@@ -2,10 +2,16 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Copy package files first for caching
 COPY package*.json ./
+
+# Install dependencies including redis
 RUN npm install
 
+# Copy the rest of the code
 COPY . .
 
-EXPOSE 5006
-CMD ["npm", "run", "dev"]
+# Expose port
+EXPOSE 5504
+
+CMD ["npx", "nodemon", "--legacy-watch", "index.js"]

@@ -1,100 +1,84 @@
 const axios = require("axios");
-const { v4: uuidv4 } = require("uuid");
-const Payment = require("../models/payment.model");
-const Transaction = require("../models/transaction.model");
-const { initiateKhalti, verifyKhalti } = require("./khalti.service");
 
-class PaymentService {
-  async initiatePayment(userId, adoptionId, amount) {
-    const adoptionRes = await axios.get(
-      `${process.env.ADOPTION_SERVICE_URL}/${adoptionId}`
-    );
+
+const hasValidKhaltiKey = () => {
+  const key = process.env.KHALTI_SECRET_KEY;
+return key && (key.startsWith("live_") || key.startsWith("test_secret_key_"));
+};
+
+const initiateKhalti = async (payload) => {
+  // Use mock if no valid key
+  if (!hasValidKhaltiKey()) {
+    console.log("🔧 MOCK MODE: Creating Khalti payment");
     
-    const adoption = adoptionRes.data;
-    if (adoption.status !== "payment_pending") {
-      throw new Error("Adoption not ready for payment");
-    }
-
-    const referenceId = uuidv4();
-    const payment = await Payment.create({
-      userId,
-      adoptionId,
-      businessId: adoption.businessId,
-      referenceId,
-      amount,
-      serviceType: "KHALTI",
-      status: "PENDING"
-    });
-
-    const khaltiResponse = await initiateKhalti({
-      amount: amount * 100,
-      purchase_order_id: payment._id,
-      purchase_order_name: `Pet Adoption - ${adoption.petId}`,
-      return_url: process.env.PAYMENT_SUCCESS_URL
-    });
-
-    payment.khalti = { pidx: khaltiResponse.pidx };
-    await payment.save();
-
-    return { pidx: khaltiResponse.pidx, paymentId: payment._id };
-  }
-
-  async verifyPayment(pidx) {
-    const verification = await verifyKhalti(pidx);
-    const payment = await Payment.findOne({ "khalti.pidx": pidx });
+    // Generate a mock pidx
+    const mockPidx = `mock_pidx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    if (!payment) throw new Error("Payment not found");
-    if (verification.status !== "Completed") {
-      throw new Error("Payment not completed");
-    }
+    return {
+      pidx: mockPidx,
+      payment_url: `http://localhost:3000/mock-payment/${mockPidx}`,
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      expires_in: 1800,
+      status: "Pending"
+    };
+  }
 
-    payment.status = "SUCCESS";
-    payment.paidAt = new Date();
-    await payment.save();
-
-    await Transaction.create({
-      userId: payment.userId,
-      businessId: payment.businessId,
-      paymentId: payment._id,
-      amount: payment.amount,
-      status: "SUCCESS",
-      title: "Adoption Payment"
-    });
-
-    await axios.patch(
-      `${process.env.ADOPTION_SERVICE_URL}/${payment.adoptionId}/mark-paid`,
-      { paymentId: payment._id }
+  // Real Khalti API call
+  try {
+    const response = await axios.post(
+      process.env.KHALTI_INIT_URL,
+      payload,
+      {
+        headers: { 
+          Authorization: `Key ${process.env.KHALTI_SECRET_KEY}` 
+        },
+      }
     );
+    return response.data;
+  } catch (error) {
+    console.error("Khalti initiation error:", error.response?.data || error.message);
+    throw new Error("Payment initiation failed");
+  }
+};
 
-    await this.processBusinessPayout(payment.businessId, payment.amount);
-
-    return payment;
+const verifyKhalti = async (pidx) => {
+  // If it's a mock pidx, return success
+  if (pidx.startsWith("mock_pidx_")) {
+    console.log("🔧 MOCK MODE: Verifying Khalti payment");
+    
+    // Simulate 2-second delay like real API
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    return {
+      pidx: pidx,
+      status: "Completed",
+      transaction_id: `mock_txn_${Date.now()}`,
+      total_amount: 1000,
+      fee: 30,
+      refunded: false,
+      created_at: new Date().toISOString()
+    };
   }
 
-  async processBusinessPayout(businessId, amount) {
-    const platformFee = amount * 0.10;
-    const businessAmount = amount - platformFee;
-
-    await Transaction.create({
-      businessId,
-      amount: businessAmount,
-      status: "PROCESSING",
-      title: "Business Payout",
-      type: "PAYOUT"
-    });
-
-    return { businessAmount, platformFee };
+  // Real Khalti verification
+  try {
+    const response = await axios.post(
+      process.env.KHALTI_VERIFY_URL,
+      { pidx },
+      {
+        headers: { 
+          Authorization: `Key ${process.env.KHALTI_SECRET_KEY}` 
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Khalti verification error:", error.response?.data || error.message);
+    throw new Error("Payment verification failed");
   }
+};
 
-  async getBusinessTransactions(businessId) {
-    return Transaction.find({ 
-      $or: [{ businessId }, { "metadata.businessId": businessId }] 
-    }).sort({ createdAt: -1 });
-  }
-
-  async getUserTransactions(userId) {
-    return Transaction.find({ userId }).sort({ createdAt: -1 });
-  }
-}
-
-module.exports = new PaymentService();
+module.exports = {
+  initiateKhalti,
+  verifyKhalti
+};

@@ -16,16 +16,16 @@ const initiatePayment = async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing fields" });
     }
 
-    const response = await axios.get(
+    const adoptionRes = await axios.get(
       `${process.env.ADOPTION_SERVICE_URL}/${adoptionId}`,
       { headers: { Authorization: req.headers.authorization } }
     );
 
-    if (!response.data.success || !response.data.adoption) {
+    if (!adoptionRes.data.success || !adoptionRes.data.adoption) {
       return res.status(404).json({ success: false, message: "Adoption not found" });
     }
 
-    const adoption = response.data.adoption;
+    const adoption = adoptionRes.data.adoption;
 
     if (adoption.status !== "payment_pending") {
       return res.status(400).json({ 
@@ -49,7 +49,7 @@ const initiatePayment = async (req, res) => {
       amount: amount * 100,
       purchase_order_id: payment._id.toString(),
       purchase_order_name: `Pet Adoption - ${adoption.petId}`,
-      return_url: process.env.PAYMENT_SUCCESS_URL
+      return_url: process.env.PAYMENT_SUCCESS_URL || "http://localhost:3000/payment-success",
     });
 
     payment.khalti = { pidx: khaltiResponse.pidx };
@@ -73,8 +73,6 @@ const initiatePayment = async (req, res) => {
     });
   }
 };
-
-
 
 const verifyPayment = async (req, res) => {
   try {

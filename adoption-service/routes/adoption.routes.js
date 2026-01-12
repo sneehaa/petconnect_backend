@@ -1,49 +1,28 @@
 const express = require("express");
 const router = express.Router();
-const { authGuard, authorize } = require("../middleware/authGuard");
+const { authGuard } = require("../middleware/authGuard");
 const adoptionController = require("../controllers/adoption.controller");
 
-
-router.post(
-  "/pets/:petId/adopt",
-  authGuard,
-  authorize("user"),
-  adoptionController.applyAdoption
-);
-
+// All routes use only authGuard (no authorize middleware)
+router.post("/pets/:petId/adopt", authGuard, adoptionController.applyAdoption);
 router.get(
   "/pets/:petId/status",
   authGuard,
-  authorize("user"),
   adoptionController.getAdoptionStatus
 );
-
-router.get(
-  "/history",
-  authGuard,
-  authorize("user"),
-  adoptionController.getAdoptionHistory
-);
-
-router.get(
-  "/pets/:petId",
-  authGuard,
-  authorize("business"),
-  adoptionController.getPetAdoptions
-);
-
+router.get("/history", authGuard, adoptionController.getAdoptionHistory);
+router.get("/pets/:petId", authGuard, adoptionController.getPetAdoptions);
 router.put(
   "/:adoptionId/status",
   authGuard,
-  authorize("business"),
   adoptionController.updateAdoptionStatus
 );
-
 router.patch(
   "/:adoptionId/mark-paid",
   authGuard,
-  authorize("user"),
   adoptionController.markAdoptionPaid
 );
+
+router.get("/:adoptionId", authGuard, adoptionController.getAdoptionById);
 
 module.exports = router;
