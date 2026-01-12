@@ -1,31 +1,51 @@
-import dotenv from "dotenv";
-dotenv.config();
+// importing
+const express = require('express');
+const dotenv = require('dotenv');
+const connectDB = require('./database/db');
+const cors = require('cors');
+const cloudinary = require('cloudinary').v2;
 
-import express from "express";
-import connectDB from "./database/db.js";
-import paymentRoutes from "./routes/payment.routes.js";
-import transactionRoutes from "./routes/transaction.routes.js";
-import receiptRoutes from "./routes/receipt.routes.js";
-import errorHandler from "./middleware/error.middleware.js";
 
 const app = express();
 
-// Middleware to parse JSON
-app.use(express.json());
 
-// Connect to MongoDB
+dotenv.config();
+
+
+cloudinary.config({ 
+  cloud_name: process.env.CLOUD_NAME, 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const corsOptions = {
+    origin: true,
+    credentials: true,
+    optionSuccessStatus: 200
+};
+app.use(cors(corsOptions))
+
+
 connectDB();
 
-// Routes
-app.use("/payments", paymentRoutes);
-app.use("/transactions", transactionRoutes);
-app.use("/receipts", receiptRoutes);
+app.use(express.json());
 
-// Error handler (should be after all routes)
-app.use(errorHandler);
+app.use(express.urlencoded({ extended: true }));
 
-// Start server
-const PORT = process.env.PORT || 5006;
-app.listen(PORT, () => {
-  console.log(`Payment service running on port ${PORT}`);
-});
+
+app.get("/test", (req,res) => {
+    res.status(200).send("Hello");
+})
+
+
+app.use('/api/payments', require('./routes/payment.routes'))
+
+
+const PORT = process.env.PORT;
+
+app.listen(PORT, ()=>{
+    console.log(`Server is running on port ${PORT}`)
+})
+
+// exporting app
+module.exports = app;

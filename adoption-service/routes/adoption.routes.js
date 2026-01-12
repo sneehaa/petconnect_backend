@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const { authGuard, authGuardAdmin, authorize } = require("../middleware/authGuard");
+const { authGuard, authorize } = require("../middleware/authGuard");
 const adoptionController = require("../controllers/adoption.controller");
 
-// User applies for adoption
+
 router.post(
   "/pets/:petId/adopt",
   authGuard,
@@ -11,7 +11,6 @@ router.post(
   adoptionController.applyAdoption
 );
 
-// User checks adoption status
 router.get(
   "/pets/:petId/status",
   authGuard,
@@ -19,10 +18,13 @@ router.get(
   adoptionController.getAdoptionStatus
 );
 
-// User sees adoption history
-router.get("/history", authGuard, authorize("user"), adoptionController.getAdoptionHistory);
+router.get(
+  "/history",
+  authGuard,
+  authorize("user"),
+  adoptionController.getAdoptionHistory
+);
 
-// Business sees adoption applications for their pet
 router.get(
   "/pets/:petId",
   authGuard,
@@ -30,12 +32,18 @@ router.get(
   adoptionController.getPetAdoptions
 );
 
-// Business approves/rejects adoption
 router.put(
   "/:adoptionId/status",
   authGuard,
   authorize("business"),
   adoptionController.updateAdoptionStatus
+);
+
+router.patch(
+  "/:adoptionId/mark-paid",
+  authGuard,
+  authorize("user"),
+  adoptionController.markAdoptionPaid
 );
 
 module.exports = router;

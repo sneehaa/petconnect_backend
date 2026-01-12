@@ -2,7 +2,6 @@
   "name": "business-service",
   "version": "1.0.0",
   "description": "Business service for PetConnect platform",
-  "type": "module",
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
@@ -24,7 +23,7 @@
     "nodemailer": "^7.0.12",
     "otp-generator": "^4.0.1",
     "redis": "^5.10.0",
-    "uuid": "^13.0.0"
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

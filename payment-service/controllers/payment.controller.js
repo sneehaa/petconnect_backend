@@ -1,99 +1,122 @@
-// payment.controller.js
-import Payment from "../models/payment.model.js";
-import Transaction from "../models/transaction.model.js";
-import Receipt from "../models/receipt.model.js";
-import { initiateKhalti, verifyKhalti } from "../services/khalti.service.js";
-import generateReceiptNo from "../utils/generateReceiptNo.js";
-import { v4 as uuidv4 } from "uuid"; // for referenceId
+const axios = require("axios");
+const { v4: uuidv4 } = require("uuid");
+const Payment = require("../models/payment.model");
+const Transaction = require("../models/transaction.model");
+const Receipt = require("../models/receipt.model");
+const { initiateKhalti, verifyKhalti } = require("../services/khalti.service");
+const { generateReceiptNo, successResponse, errorResponse } = require("../utils/generateReceiptNo");
 
-// --------------------
-// Initiate Payment
-// --------------------
-export const initiatePayment = async (req, res) => {
+// initiate payment
+const initiatePayment = async (req, res) => {
   try {
-    // Make sure req.user exists (authMiddleware)
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+    if (!req.user?.id) return errorResponse(res, "unauthorized", 401);
 
-    // Generate unique referenceId automatically
+    const { adoptionId, amount } = req.body;
+    if (!adoptionId || !amount) return errorResponse(res, "missing fields", 400);
+
+    // check adoption exists from adoption-service
+    const adoptionRes = await axios.get(
+      `${process.env.ADOPTION_SERVICE_URL}/${adoptionId}`,
+      { headers: { Authorization: req.headers.authorization } }
+    );
+
+    if (!adoptionRes.data) return errorResponse(res, "adoption not found", 404);
+
     const referenceId = uuidv4();
-
-    // Create payment in DB
     const payment = await Payment.create({
       userId: req.user.id,
+      adoptionId,
       referenceId,
-      serviceType: "khalti",
-      ...req.body, // amount, product_identity, product_name, customer info
+      amount,
+      serviceType: "KHALTI",
       status: "PENDING",
     });
 
-    // Call Khalti to initiate payment
     const khaltiResponse = await initiateKhalti({
-      amount: payment.amount * 100, // in paisa
+      amount: amount * 100,
       purchase_order_id: payment._id,
-      purchase_order_name: payment.product_name || "Pet Payment",
-      return_url: "http://localhost:3000/payment-success",
+      purchase_order_name: "Pet Adoption Payment",
+      return_url: process.env.PAYMENT_SUCCESS_URL,
     });
 
-    // Save Khalti transaction ID
     payment.khalti = { pidx: khaltiResponse.pidx };
     await payment.save();
 
-    return res.json({
-      success: true,
-      message: "Payment initiated",
-      payment,
-      khalti: khaltiResponse,
-    });
+    successResponse(res, { pidx: khaltiResponse.pidx, paymentId: payment._id }, "payment initiated");
   } catch (err) {
-    console.error("INITIATE PAYMENT ERROR:", err);
-    return res.status(400).json({ success: false, message: err.message });
+    console.error("initiate payment error:", err.message);
+    errorResponse(res, "payment initiation failed");
   }
 };
 
-// --------------------
-// Verify Payment
-// --------------------
-export const verifyPayment = async (req, res) => {
+// verify payment
+const verifyPayment = async (req, res) => {
   try {
     const { pidx } = req.body;
+    if (!pidx) return errorResponse(res, "pidx required", 400);
 
-    if (!pidx) {
-      return res.status(400).json({ success: false, message: "Payment ID (pidx) required" });
-    }
-
-    // Verify with Khalti
     const verification = await verifyKhalti(pidx);
-
     const payment = await Payment.findOne({ "khalti.pidx": pidx });
-    if (!payment) return res.status(404).json({ success: false, message: "Payment not found" });
+    if (!payment) return errorResponse(res, "payment not found", 404);
 
-    if (verification.status === "Completed") {
-      payment.status = "SUCCESS";
-      payment.paidAt = new Date();
-      await payment.save();
+    if (verification.status !== "Completed") return errorResponse(res, "payment not completed", 400);
 
-      // Create transaction record
-      await Transaction.create({
-        userId: payment.userId,
-        paymentId: payment._id,
-        title: "Payment Successful",
-        amount: payment.amount,
-        status: "SUCCESS",
-      });
+    payment.status = "SUCCESS";
+    payment.paidAt = new Date();
+    await payment.save();
 
-      // Create receipt
-      await Receipt.create({
-        paymentId: payment._id,
-        receiptNumber: generateReceiptNo(),
-        issuedTo: payment.userId.toString(),
-      });
-    }
+    await Transaction.create({
+      userId: payment.userId,
+      paymentId: payment._id,
+      amount: payment.amount,
+      status: "SUCCESS",
+      title: "adoption payment",
+    });
 
-    return res.json({ success: true, message: "Payment verified", payment });
+    await Receipt.create({
+      paymentId: payment._id,
+      issuedTo: payment.userId,
+      receiptNumber: generateReceiptNo(),
+    });
+
+    // notify adoption-service
+    await axios.patch(
+      `${process.env.ADOPTION_SERVICE_URL}/${payment.adoptionId}/mark-paid`,
+      {},
+      { headers: { Authorization: req.headers.authorization } }
+    );
+
+    successResponse(res, null, "payment verified");
   } catch (err) {
-    console.error("VERIFY PAYMENT ERROR:", err);
-    return res.status(400).json({ success: false, message: err.message });
+    console.error("verify payment error:", err.message);
+    errorResponse(res, "verification failed");
   }
+};
+
+// get user transactions
+const getMyTransactions = async (req, res) => {
+  try {
+    const transactions = await Transaction.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    successResponse(res, transactions);
+  } catch (err) {
+    errorResponse(res);
+  }
+};
+
+// get receipt by payment id
+const getReceiptByPaymentId = async (req, res) => {
+  try {
+    const receipt = await Receipt.findOne({ paymentId: req.params.paymentId, issuedTo: req.user.id });
+    if (!receipt) return errorResponse(res, "receipt not found", 404);
+    successResponse(res, receipt);
+  } catch (err) {
+    errorResponse(res);
+  }
+};
+
+module.exports = {
+  initiatePayment,
+  verifyPayment,
+  getMyTransactions,
+  getReceiptByPaymentId,
 };

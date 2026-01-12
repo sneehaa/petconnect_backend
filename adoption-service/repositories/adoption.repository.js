@@ -1,8 +1,8 @@
 const Adoption = require("../models/adoption.model");
 
 class AdoptionRepository {
-  create(adoptionData) {
-    return Adoption.create(adoptionData);
+  create(data) {
+    return Adoption.create(data);
   }
 
   findById(id) {
@@ -17,12 +17,29 @@ class AdoptionRepository {
     return Adoption.find({ petId }).sort({ createdAt: -1 });
   }
 
+  findByBusiness(businessId) {
+    return Adoption.find({ businessId }).sort({ createdAt: -1 });
+  }
+
   findUserPetAdoption(userId, petId) {
     return Adoption.findOne({ userId, petId });
   }
 
   updateStatus(adoptionId, status) {
     return Adoption.findByIdAndUpdate(adoptionId, { status }, { new: true });
+  }
+
+  markPaid(adoptionId, paymentId) {
+    return Adoption.findByIdAndUpdate(
+      adoptionId,
+      {
+        status: "completed",
+        "payment.paymentId": paymentId,
+        "payment.isPaid": true,
+        "payment.paidAt": new Date()
+      },
+      { new: true }
+    );
   }
 }
 

@@ -1,34 +1,12 @@
-// models/payment.model.js
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const PaymentSchema = new mongoose.Schema(
   {
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    amount: {
-      type: Number,
-      required: true,
-    },
-    product_identity: {
       type: String,
       required: true,
     },
-    product_name: {
-      type: String,
-      required: true,
-    },
-    customer_name: {
-      type: String,
-      required: true,
-    },
-    customer_email: {
-      type: String,
-      required: true,
-    },
-    customer_phone: {
+    adoptionId: {
       type: String,
       required: true,
     },
@@ -37,10 +15,14 @@ const PaymentSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    amount: {
+      type: Number,
+      required: true,
+    },
     serviceType: {
       type: String,
-      required: true,
-      enum: ["khalti"], // can add more payment types later
+      enum: ["KHALTI"],
+      default: "KHALTI",
     },
     status: {
       type: String,
@@ -51,11 +33,10 @@ const PaymentSchema = new mongoose.Schema(
       type: Date,
     },
     khalti: {
-      pidx: { type: String }, // store Khalti payment ID
+      pidx: { type: String },
     },
   },
   { timestamps: true }
 );
 
-const Payment = mongoose.model("Payment", PaymentSchema);
-export default Payment;
+module.exports = mongoose.model("Payment", PaymentSchema);

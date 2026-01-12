@@ -74,3 +74,36 @@ services:
       - user-service
       - business-service
       - pet-service
+
+  payment-service:
+    build: ./payment-service
+    container_name: payment-service
+    ports:
+      - "5504:5504"
+    environment:
+      - PORT=5504
+      - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
+      - EMAIL_USER=adhikarisneha0001@gmail.com
+      - EMAIL_PASS=koqycslmnunmthqn
+      - JWT_SECRET=SECRET
+      - CLOUDINARY_CLOUD_NAME=dnsijcpng
+      - CLOUDINARY_API_KEY=764798892284885
+      - CLOUDINARY_API_SECRET=Ffqi4kyPjcyZH7pKuvkOmjmwYWw
+      - KHALTI_SECRET_KEY=test_secret_key_2abffc2f5fac45c981affa111407efd5
+      - KHALTI_INIT_URL=https://a.khalti.com/api/v2/epayment/initiate/
+      - KHALTI_VERIFY_URL=https://a.khalti.com/api/v2/epayment/lookup/
+      - REDIS_URL=redis://redis:6379
+      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
+      - PET_SERVICE_URL=http://pet-service:5502/api/pets
+      - ADOPTION_SERVICE_URL=http://adoption-service:5503/api/adoption
+      - PAYMENT_SERVICE_URL=http://payment-service:5504/api/payment
+    volumes:
+      - ./payment-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      - redis
+      - user-service
+      - business-service
+      - pet-service
+      - adoption-service

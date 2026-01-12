@@ -1,18 +1,26 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
-const receiptSchema = new mongoose.Schema(
+const ReceiptSchema = new mongoose.Schema(
   {
     paymentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Payment",
+      type: String,
       required: true,
     },
-    receiptNumber: { type: String, unique: true, required: true },
-    issuedTo: { type: String, required: true },
-    issuedAt: { type: Date, default: Date.now },
-    receiptUrl: String,
+    receiptNumber: {
+      type: String,
+      unique: true,
+      required: true,
+    },
+    issuedTo: {
+      type: String,
+      required: true,
+    },
+    issuedAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Receipt", receiptSchema);
+module.exports = mongoose.model("Receipt", ReceiptSchema);
