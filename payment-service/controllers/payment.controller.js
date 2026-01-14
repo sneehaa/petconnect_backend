@@ -1,4 +1,4 @@
-const axios = require("axios");
+// controllers/payment.controller.js
 const { v4: uuidv4 } = require("uuid");
 const Payment = require("../models/payment.model");
 const Transaction = require("../models/transaction.model");
@@ -12,170 +12,131 @@ const initiatePayment = async (req, res) => {
     }
 
     const { adoptionId, amount } = req.body;
-    if (!adoptionId || !amount) {
-      return res.status(400).json({ success: false, message: "Missing fields" });
-    }
-
-    const response = await axios.get(
-      `${process.env.ADOPTION_SERVICE_URL}/${adoptionId}`,
-      { headers: { Authorization: req.headers.authorization } }
-    );
-
-    if (!response.data.success || !response.data.adoption) {
-      return res.status(404).json({ success: false, message: "Adoption not found" });
-    }
-
-    const adoption = response.data.adoption;
-
-    if (adoption.status !== "payment_pending") {
+    if (!adoptionId || !amount || amount < 10) {
       return res.status(400).json({ 
         success: false, 
-        message: `Adoption not ready for payment. Status: ${adoption.status}` 
+        message: "Need adoption ID and amount (min: NPR 10)" 
       });
     }
 
-    const referenceId = uuidv4();
+    // Create payment record
     const payment = await Payment.create({
       userId: req.user.id,
       adoptionId,
-      businessId: adoption.businessId,
-      referenceId,
       amount,
-      serviceType: "KHALTI",
       status: "PENDING",
+      referenceId: uuidv4(),
+      metadata: {
+        userEmail: req.user.email,
+        userName: req.user.name
+      }
     });
 
+    // Get mock payment ID
     const khaltiResponse = await initiateKhalti({
       amount: amount * 100,
       purchase_order_id: payment._id.toString(),
-      purchase_order_name: `Pet Adoption - ${adoption.petId}`,
-      return_url: process.env.PAYMENT_SUCCESS_URL
+      purchase_order_name: `Pet Adoption #${adoptionId.slice(0, 6)}`
     });
 
-    payment.khalti = { pidx: khaltiResponse.pidx };
+    // Save payment ID
+    payment.khaltiPidx = khaltiResponse.pidx;
     await payment.save();
 
-    return res.status(200).json({ 
-      success: true, 
-      message: "Payment initiated successfully",
-      data: { 
-        pidx: khaltiResponse.pidx, 
+    // Simple response for Flutter
+    res.json({
+      success: true,
+      message: "Ready for mock payment",
+      data: {
+        pidx: khaltiResponse.pidx,
         paymentId: payment._id,
-        payment_url: khaltiResponse.payment_url || khaltiResponse.pidx
+        amount: amount,
+        nextStep: "Call verify endpoint to complete"
       }
     });
     
   } catch (err) {
-    console.error("Initiate payment error:", err.message);
-    return res.status(500).json({ 
-      success: false, 
-      message: `Payment initiation failed: ${err.message}` 
-    });
+    console.error("Initiate error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
-
-
 
 const verifyPayment = async (req, res) => {
   try {
     const { pidx } = req.body;
     if (!pidx) {
-      return res.status(400).json({ success: false, message: "pidx required" });
+      return res.status(400).json({ success: false, message: "Need pidx" });
     }
 
+    // Verify mock payment
     const verification = await verifyKhalti(pidx);
-    const payment = await Payment.findOne({ "khalti.pidx": pidx });
+    
+    // Find and update payment
+    const payment = await Payment.findOne({ khaltiPidx: pidx });
     if (!payment) {
       return res.status(404).json({ success: false, message: "Payment not found" });
-    }
-
-    if (verification.status !== "Completed") {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Payment not completed. Status: ${verification.status}` 
-      });
     }
 
     payment.status = "SUCCESS";
     payment.paidAt = new Date();
     await payment.save();
 
+    // Create transaction
     await Transaction.create({
       userId: payment.userId,
-      businessId: payment.businessId,
       paymentId: payment._id,
       amount: payment.amount,
       status: "SUCCESS",
-      title: "Adoption Payment",
-      type: "PAYMENT"
+      title: "Pet Adoption Payment"
     });
 
-    const receiptNumber = `RCPT-${Date.now()}-${payment._id.toString().slice(-6)}`;
+    // Generate receipt
+    const receiptNumber = `RCPT-${Date.now()}`;
     await Receipt.create({
       paymentId: payment._id,
       userId: payment.userId,
       receiptNumber,
-      amount: payment.amount,
-      issuedAt: new Date()
+      amount: payment.amount
     });
 
-    try {
-      await axios.patch(
-        `${process.env.ADOPTION_SERVICE_URL}/${payment.adoptionId}/mark-paid`,
-        { paymentId: payment._id },
-        { headers: { Authorization: req.headers.authorization } }
-      );
-    } catch (adoptionErr) {
-      console.error("Failed to update adoption service:", adoptionErr.message);
-    }
-
-    return res.status(200).json({ 
-      success: true, 
-      message: "Payment verified successfully",
-      data: { 
+    // Success response
+    res.json({
+      success: true,
+      message: "✅ Payment Successful (College Project Demo)",
+      data: {
         paymentId: payment._id,
         receiptNumber,
-        amount: payment.amount
+        amount: payment.amount,
+        paidAt: payment.paidAt
       }
     });
+    
   } catch (err) {
-    console.error("Verify payment error:", err.message);
-    return res.status(500).json({ 
-      success: false, 
-      message: `Verification failed: ${err.message}` 
-    });
+    console.error("Verify error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// Other functions remain simple...
 const getMyTransactions = async (req, res) => {
-  try {
-    const transactions = await Transaction.find({ userId: req.user.id }).sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, data: transactions });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Failed to get transactions" });
-  }
+  const transactions = await Transaction.find({ userId: req.user.id });
+  res.json({ success: true, data: transactions });
 };
 
 const getReceiptByPaymentId = async (req, res) => {
-  try {
-    const receipt = await Receipt.findOne({ 
-      paymentId: req.params.paymentId, 
-      userId: req.user.id 
-    });
-    
-    if (!receipt) {
-      return res.status(404).json({ success: false, message: "Receipt not found" });
-    }
-    
-    return res.status(200).json({ success: true, data: receipt });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Failed to get receipt" });
+  const receipt = await Receipt.findOne({ 
+    paymentId: req.params.paymentId, 
+    userId: req.user.id 
+  });
+  if (!receipt) {
+    return res.status(404).json({ success: false, message: "Receipt not found" });
   }
+  res.json({ success: true, data: receipt });
 };
 
 module.exports = {
   initiatePayment,
   verifyPayment,
   getMyTransactions,
-  getReceiptByPaymentId,
+  getReceiptByPaymentId
 };

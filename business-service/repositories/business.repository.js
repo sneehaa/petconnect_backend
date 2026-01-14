@@ -30,23 +30,6 @@ class BusinessRepository {
     return Business.findByIdAndDelete(id);
   }
 
-  findNearby(latitude, longitude) {
-    return Business.aggregate([
-      {
-        $geoNear: {
-          near: { 
-            type: "Point", 
-            coordinates: [Number(longitude), Number(latitude)] 
-          },
-          distanceField: "distance",
-          spherical: true,
-          distanceMultiplier: 0.001,
-        },
-      },
-      { $match: { businessStatus: "Approved" } },
-    ]);
-  }
-
   findAll(filter = {}) {
     return Business.find(filter);
   }

@@ -1,8 +1,5 @@
 const businessService = require("../services/business.service");
 
-// =======================
-// PUBLIC ROUTES
-// =======================
 exports.registerBusiness = async (req, res) => {
   try {
     const { business, tempToken } = await businessService.register(req.body);
@@ -27,19 +24,6 @@ exports.loginBusiness = async (req, res) => {
   }
 };
 
-exports.getNearbyBusinesses = async (req, res) => {
-  try {
-    const { latitude, longitude } = req.query;
-    if (!latitude || !longitude)
-      return res.status(400).json({ message: "Latitude and longitude are required" });
-
-    const businesses = await businessService.getNearby(latitude, longitude);
-    res.status(200).json({ success: true, count: businesses.length, businesses });
-  } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
-  }
-};
-
 exports.getBusinessDetails = async (req, res) => {
   try {
     const business = await businessService.getById(req.params.businessId);
@@ -49,9 +33,6 @@ exports.getBusinessDetails = async (req, res) => {
   }
 };
 
-// =======================
-// AUTHENTICATED BUSINESS
-// =======================
 exports.getMyBusiness = async (req, res) => {
   try {
     const business = await businessService.getById(req.business.id);
@@ -89,9 +70,7 @@ exports.uploadDocuments = async (req, res) => {
   }
 };
 
-// =======================
-// ADMIN ROUTES
-// =======================
+
 exports.approveBusiness = async (req, res) => {
   try {
     await businessService.approve(req.params.businessId);

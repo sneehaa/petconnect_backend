@@ -50,10 +50,6 @@ class BusinessService {
     return business;
   }
 
-  async getNearby(latitude, longitude) {
-    return businessRepo.findNearby(latitude, longitude);
-  }
-
   async createProfile(businessId, data) {
     return businessRepo.update(businessId, data);
   }
