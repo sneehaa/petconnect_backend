@@ -4,18 +4,34 @@ const adoptionSchema = new mongoose.Schema(
   {
     petId: {
       type: String,
-      required: true, 
+      required: true,
     },
     userId: {
       type: String,
-      required: true, 
+      required: true,
+    },
+    businessId: {
+      type: String,
+      required: true,
     },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      enum: ["pending", "approved", "rejected", "payment_pending", "completed"],
       default: "pending",
     },
-    message: String,
+    rejectionReason: String,
+    payment: {
+      paymentId: String,
+      isPaid: {
+        type: Boolean,
+        default: false,
+      },
+      amount: Number,
+    },
+    appliedAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { timestamps: true }
 );

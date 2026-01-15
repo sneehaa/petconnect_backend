@@ -1,19 +1,17 @@
-# Use Node.js 18
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package.json first (better caching)
+# Copy package files first for caching
 COPY package*.json ./
 
-# Install dependencies (express, redis, mongoose, etc.)
+# Install dependencies including redis
 RUN npm install
 
 # Copy the rest of the code
 COPY . .
 
-# Expose the port (from .env or default 5502)
-EXPOSE ${PORT:-5502}
+# Expose port
+EXPOSE 5502
 
-# Start the app
 CMD ["npx", "nodemon", "--legacy-watch", "index.js"]

@@ -13,8 +13,12 @@ const uploadBusinessDoc = require("../multer/business.multer");
 // =====================
 router.post("/register", businessController.registerBusiness);
 router.post("/login", businessController.loginBusiness);
+<<<<<<< HEAD
 router.get("/nearby", businessController.getNearbyBusinesses);
 router.post("/reset-password", authGuardBusiness, businessController.resetPassword);
+=======
+router.get("/", businessController.getApprovedBusinesses)
+>>>>>>> 4fef8b60fd1a565ebb5ad287c89035cd1fd56a01
 router.get("/:businessId", businessController.getBusinessDetails);
 
 // =====================

@@ -1,13 +1,20 @@
-import express from "express";
-import { initiatePayment, verifyPayment } from "../controllers/payment.controller.js";
-import authMiddleware from "../middleware/auth.middleware.js";
-
+// routes/payment.routes.js
+const express = require("express");
 const router = express.Router();
+const { authGuard } = require("../middleware/auth.middleware"); 
+const paymentController = require("../controllers/payment.controller");
 
-// Protected route: /khalti/initiate requires JWT
-router.post("/khalti/initiate", authMiddleware, initiatePayment);
 
-// Public route: /khalti/verify is open for Khalti callbacks
-router.post("/khalti/verify", verifyPayment);
+// User initiates Khalti payment
+router.post("/khalti/initiate", authGuard, paymentController.initiatePayment);
 
-export default router;
+// Khalti verification
+router.post("/khalti/verify", paymentController.verifyPayment);
+
+// User transaction history
+router.get("/transactions/my-history", authGuard, paymentController.getMyTransactions);
+
+// Get receipt
+router.get("/receipts/:paymentId", authGuard, paymentController.getReceiptByPaymentId);
+
+module.exports = router;

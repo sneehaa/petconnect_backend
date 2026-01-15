@@ -1,3 +1,4 @@
+// business.repository.js - SINGLE VERSION
 const Business = require("../models/business.model");
 
 class BusinessRepository {
@@ -9,38 +10,28 @@ class BusinessRepository {
     return Business.findById(id);
   }
 
-  findByUsername(email) {
+  findByEmail(email) {
     return Business.findOne({ email });
   }
 
-  findByUser(userId) {
-    return Business.findOne({ createdBy: userId });
+  findByUsername(username) {
+    return Business.findOne({ username });
   }
 
   findApproved() {
     return Business.find({ businessStatus: "Approved" });
   }
 
-  update(business) {
-    return business.save();
+  update(id, data) {
+    return Business.findByIdAndUpdate(id, data, { new: true });
   }
 
-  delete(businessId) {
-    return Business.findByIdAndDelete(businessId);
+  delete(id) {
+    return Business.findByIdAndDelete(id);
   }
 
-  findNearby(latitude, longitude) {
-    return Business.aggregate([
-      {
-        $geoNear: {
-          near: { type: "Point", coordinates: [Number(longitude), Number(latitude)] },
-          distanceField: "distance",
-          spherical: true,
-          distanceMultiplier: 0.001,
-        },
-      },
-      { $match: { businessStatus: "Approved" } },
-    ]);
+  findAll(filter = {}) {
+    return Business.find(filter);
   }
 }
 

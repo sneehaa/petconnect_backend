@@ -1,99 +1,142 @@
-// payment.controller.js
-import Payment from "../models/payment.model.js";
-import Transaction from "../models/transaction.model.js";
-import Receipt from "../models/receipt.model.js";
-import { initiateKhalti, verifyKhalti } from "../services/khalti.service.js";
-import generateReceiptNo from "../utils/generateReceiptNo.js";
-import { v4 as uuidv4 } from "uuid"; // for referenceId
+// controllers/payment.controller.js
+const { v4: uuidv4 } = require("uuid");
+const Payment = require("../models/payment.model");
+const Transaction = require("../models/transaction.model");
+const Receipt = require("../models/receipt.model");
+const { initiateKhalti, verifyKhalti } = require("../services/khalti.service");
 
-// --------------------
-// Initiate Payment
-// --------------------
-export const initiatePayment = async (req, res) => {
+const initiatePayment = async (req, res) => {
   try {
-    // Make sure req.user exists (authMiddleware)
-    if (!req.user || !req.user.id) {
+    if (!req.user?.id) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Generate unique referenceId automatically
-    const referenceId = uuidv4();
+    const { adoptionId, amount } = req.body;
+    if (!adoptionId || !amount || amount < 10) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Need adoption ID and amount (min: NPR 10)" 
+      });
+    }
 
-    // Create payment in DB
+    // Create payment record
     const payment = await Payment.create({
       userId: req.user.id,
-      referenceId,
-      serviceType: "khalti",
-      ...req.body, // amount, product_identity, product_name, customer info
+      adoptionId,
+      amount,
       status: "PENDING",
+      referenceId: uuidv4(),
+      metadata: {
+        userEmail: req.user.email,
+        userName: req.user.name
+      }
     });
 
-    // Call Khalti to initiate payment
+    // Get mock payment ID
     const khaltiResponse = await initiateKhalti({
-      amount: payment.amount * 100, // in paisa
-      purchase_order_id: payment._id,
-      purchase_order_name: payment.product_name || "Pet Payment",
-      return_url: "http://localhost:3000/payment-success",
+      amount: amount * 100,
+      purchase_order_id: payment._id.toString(),
+      purchase_order_name: `Pet Adoption #${adoptionId.slice(0, 6)}`
     });
 
-    // Save Khalti transaction ID
-    payment.khalti = { pidx: khaltiResponse.pidx };
+    // Save payment ID
+    payment.khaltiPidx = khaltiResponse.pidx;
     await payment.save();
 
-    return res.json({
+    // Simple response for Flutter
+    res.json({
       success: true,
-      message: "Payment initiated",
-      payment,
-      khalti: khaltiResponse,
+      message: "Ready for mock payment",
+      data: {
+        pidx: khaltiResponse.pidx,
+        paymentId: payment._id,
+        amount: amount,
+        nextStep: "Call verify endpoint to complete"
+      }
     });
+    
   } catch (err) {
-    console.error("INITIATE PAYMENT ERROR:", err);
-    return res.status(400).json({ success: false, message: err.message });
+    console.error("Initiate error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// --------------------
-// Verify Payment
-// --------------------
-export const verifyPayment = async (req, res) => {
+const verifyPayment = async (req, res) => {
   try {
     const { pidx } = req.body;
-
     if (!pidx) {
-      return res.status(400).json({ success: false, message: "Payment ID (pidx) required" });
+      return res.status(400).json({ success: false, message: "Need pidx" });
     }
 
-    // Verify with Khalti
+    // Verify mock payment
     const verification = await verifyKhalti(pidx);
-
-    const payment = await Payment.findOne({ "khalti.pidx": pidx });
-    if (!payment) return res.status(404).json({ success: false, message: "Payment not found" });
-
-    if (verification.status === "Completed") {
-      payment.status = "SUCCESS";
-      payment.paidAt = new Date();
-      await payment.save();
-
-      // Create transaction record
-      await Transaction.create({
-        userId: payment.userId,
-        paymentId: payment._id,
-        title: "Payment Successful",
-        amount: payment.amount,
-        status: "SUCCESS",
-      });
-
-      // Create receipt
-      await Receipt.create({
-        paymentId: payment._id,
-        receiptNumber: generateReceiptNo(),
-        issuedTo: payment.userId.toString(),
-      });
+    
+    // Find and update payment
+    const payment = await Payment.findOne({ khaltiPidx: pidx });
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment not found" });
     }
 
-    return res.json({ success: true, message: "Payment verified", payment });
+    payment.status = "SUCCESS";
+    payment.paidAt = new Date();
+    await payment.save();
+
+    // Create transaction
+    await Transaction.create({
+      userId: payment.userId,
+      paymentId: payment._id,
+      amount: payment.amount,
+      status: "SUCCESS",
+      title: "Pet Adoption Payment"
+    });
+
+    // Generate receipt
+    const receiptNumber = `RCPT-${Date.now()}`;
+    await Receipt.create({
+      paymentId: payment._id,
+      userId: payment.userId,
+      receiptNumber,
+      amount: payment.amount
+    });
+
+    // Success response
+    res.json({
+      success: true,
+      message: "✅ Payment Successful (College Project Demo)",
+      data: {
+        paymentId: payment._id,
+        receiptNumber,
+        amount: payment.amount,
+        paidAt: payment.paidAt
+      }
+    });
+    
   } catch (err) {
-    console.error("VERIFY PAYMENT ERROR:", err);
-    return res.status(400).json({ success: false, message: err.message });
+    console.error("Verify error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
+};
+
+// Other functions remain simple...
+const getMyTransactions = async (req, res) => {
+  const transactions = await Transaction.find({ userId: req.user.id });
+  res.json({ success: true, data: transactions });
+};
+
+const getReceiptByPaymentId = async (req, res) => {
+  const receipt = await Receipt.findOne({ 
+    paymentId: req.params.paymentId, 
+    userId: req.user.id 
+  });
+  if (!receipt) {
+    return res.status(404).json({ success: false, message: "Receipt not found" });
+  }
+  res.json({ success: true, data: receipt });
+};
+
+module.exports = {
+  initiatePayment,
+  verifyPayment,
+  getMyTransactions,
+  getReceiptByPaymentId
 };

@@ -1,5 +1,10 @@
+
+// Receipt number generator
 const generateReceiptNo = () => {
   return "RCPT-" + Date.now();
 };
 
-export default generateReceiptNo;
+// Export all functions
+module.exports = {
+  generateReceiptNo,
+};

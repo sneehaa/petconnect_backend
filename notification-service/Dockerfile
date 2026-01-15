@@ -12,6 +12,6 @@ RUN npm install
 COPY . .
 
 # Expose port
-EXPOSE 5501
+EXPOSE 5505
 
 CMD ["npx", "nodemon", "--legacy-watch", "index.js"]

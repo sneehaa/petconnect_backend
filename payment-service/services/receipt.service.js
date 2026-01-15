@@ -1,7 +1,7 @@
-import Receipt from "../models/receipt.model.js";
-import generateReceiptNo from "../utils/generateReceiptNo.js";
+const Receipt = require("../models/receipt.model");
+const generateReceiptNo = require("../utils/generateReceiptNo");
 
-export const createReceipt = async ({ paymentId, issuedTo, receiptUrl }) => {
+const createReceipt = async ({ paymentId, issuedTo, receiptUrl }) => {
   const receipt = await Receipt.create({
     paymentId,
     issuedTo,
@@ -11,7 +11,12 @@ export const createReceipt = async ({ paymentId, issuedTo, receiptUrl }) => {
   return receipt;
 };
 
-export const getReceipt = async (paymentId) => {
+const getReceipt = async (paymentId) => {
   const receipt = await Receipt.findOne({ paymentId });
   return receipt;
+};
+
+module.exports = {
+  createReceipt,
+  getReceipt,
 };

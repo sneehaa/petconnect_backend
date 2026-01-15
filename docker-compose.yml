@@ -53,6 +53,34 @@ services:
       - user-service
       - business-service
 
+  # NOTIFICATION SERVICE SHOULD START FIRST
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports:
+      - "5505:5505"
+    environment:
+      - PORT=5505
+      - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
+      - EMAIL_USER=adhikarisneha0001@gmail.com
+      - EMAIL_PASS=koqycslmnunmthqn
+      - JWT_SECRET=SECRET
+      - CLOUDINARY_CLOUD_NAME=dnsijcpng
+      - CLOUDINARY_API_KEY=764798892284885
+      - CLOUDINARY_API_SECRET=Ffqi4kyPjcyZH7pKuvkOmjmwYWw
+      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
+      - PET_SERVICE_URL=http://pet-service:5502/api/pets
+      - PAYMENT_SERVICE_URL=http://payment-service:5504/api/payment
+    volumes:
+      - ./notification-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      - user-service
+      - business-service
+      - pet-service
+    # REMOVED adoption-service dependency
+
   adoption-service:
     build: ./adoption-service
     container_name: adoption-service
@@ -67,6 +95,7 @@ services:
       - USER_SERVICE_URL=http://user-service:5500/api/user
       - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
       - PET_SERVICE_URL=http://pet-service:5502/api/pets
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5505/api/notifications
     volumes:
       - ./adoption-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
@@ -74,11 +103,18 @@ services:
       - user-service
       - business-service
       - pet-service
+<<<<<<< HEAD
       
+=======
+      - notification-service
+    # KEEP notification-service dependency
+
+>>>>>>> 4fef8b60fd1a565ebb5ad287c89035cd1fd56a01
   payment-service:
     build: ./payment-service
     container_name: payment-service
     ports:
+<<<<<<< HEAD
       - "5006:5006"
     environment:
       - PORT=5006
@@ -88,11 +124,33 @@ services:
       - KHALTI_INIT_URL=https://a.khalti.com/api/v2/epayment/initiate/
       - KHALTI_VERIFY_URL=https://a.khalti.com/api/v2/epayment/verify/
       - REDIS_URL=redis://redis:6379
+=======
+      - "5504:5504"
+    environment:
+      - PORT=5504
+      - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
+      - EMAIL_USER=adhikarisneha0001@gmail.com
+      - EMAIL_PASS=koqycslmnunmthqn
+      - JWT_SECRET=SECRET
+      - CLOUDINARY_CLOUD_NAME=dnsijcpng
+      - CLOUDINARY_API_KEY=764798892284885
+      - CLOUDINARY_API_SECRET=Ffqi4kyPjcyZH7pKuvkOmjmwYWw
+      - KHALTI_SECRET_KEY=test_secret_key_2abffc2f5fac45c981affa111407efd5
+      - KHALTI_INIT_URL=https://a.khalti.com/api/v2/epayment/initiate/
+      - KHALTI_VERIFY_URL=https://a.khalti.com/api/v2/epayment/lookup/
+      - REDIS_URL=redis://redis:6379
+      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
+      - PET_SERVICE_URL=http://pet-service:5502/api/pets
+      - ADOPTION_SERVICE_URL=http://adoption-service:5503/api/adoption
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5505/api/notifications
+>>>>>>> 4fef8b60fd1a565ebb5ad287c89035cd1fd56a01
     volumes:
       - ./payment-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
     depends_on:
       - redis
+<<<<<<< HEAD
 
   admin-service:
     build: ./admin-service
@@ -118,3 +176,10 @@ services:
       - payment-service
       - adoption-service
       - redis
+=======
+      - user-service
+      - business-service
+      - pet-service
+      - adoption-service
+      - notification-service
+>>>>>>> 4fef8b60fd1a565ebb5ad287c89035cd1fd56a01
