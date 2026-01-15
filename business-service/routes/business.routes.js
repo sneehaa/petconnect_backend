@@ -14,6 +14,7 @@ const uploadBusinessDoc = require("../multer/business.multer");
 router.post("/register", businessController.registerBusiness);
 router.post("/login", businessController.loginBusiness);
 router.get("/nearby", businessController.getNearbyBusinesses);
+router.post("/reset-password", authGuardBusiness, businessController.resetPassword);
 router.get("/:businessId", businessController.getBusinessDetails);
 
 // =====================
@@ -70,5 +71,6 @@ router.delete(
   authGuardAdmin,
   businessController.deleteBusiness
 );
+
 
 module.exports = router;

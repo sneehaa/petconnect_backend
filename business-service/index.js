@@ -1,53 +1,58 @@
-// importing
+// -------------------- Imports --------------------
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDB = require('./database/db');
+const connectDB = require('./database/db'); // CommonJS
 const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
 
-// Making express app
-const app = express();
+// Import routes (CommonJS)
+const businessRoutes = require('./routes/business.routes');
+const countRoutes = require('./routes/count.routes');
 
-// dotenv config
+// -------------------- Config --------------------
 dotenv.config();
 
-// cloudinary config
+// -------------------- Express App --------------------
+const app = express();
+
+// -------------------- Cloudinary Config --------------------
 cloudinary.config({ 
   cloud_name: process.env.CLOUD_NAME, 
   api_key: process.env.CLOUDINARY_API_KEY, 
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// cors config to accept request from frontend
+// -------------------- CORS Config --------------------
 const corsOptions = {
     origin: true,
     credentials: true,
     optionSuccessStatus: 200
 };
-app.use(cors(corsOptions))
+app.use(cors(corsOptions));
 
-// mongodb connection
+// -------------------- MongoDB Connection --------------------
 connectDB();
 
-// Accepting json data
+// -------------------- Middleware --------------------
 app.use(express.json());
-
-// Accepting multipart/form-data
 app.use(express.urlencoded({ extended: true }));
 
-// creating test route
-app.get("/test", (req,res) => {
+// -------------------- Test Route --------------------
+app.get("/test", (req, res) => {
     res.status(200).send("Hello");
-})
+});
 
-app.use('/api/business', require('./routes/business.routes'))
+// -------------------- Routes --------------------
+app.use('/api/business', businessRoutes);
+app.use('/api/business', countRoutes); // GET /api/business/admin/count
 
+// -------------------- Port --------------------
+const PORT = process.env.PORT || 5520;
 
-// defining port
-const PORT = process.env.PORT;
-app.listen(PORT, ()=>{
-    console.log(`Server is running on port ${PORT}`)
-})
+// -------------------- Start Server --------------------
+app.listen(PORT, () => {
+    console.log(`Business service running on port ${PORT}`);
+});
 
-// exporting app
+// -------------------- Export App --------------------
 module.exports = app;

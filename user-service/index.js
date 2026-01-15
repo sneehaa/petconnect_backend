@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const connectDB = require('./database/db');
 const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
+const countRoutes = require('./routes/count.routes');
+
 
 // dotenv config
 dotenv.config();
@@ -42,6 +44,8 @@ app.get("/test", (req,res) => {
 
 // creating user routes
 app.use('/api/user', require('./routes/user.routes'));
+app.use('/api/users', countRoutes); // /api/users/count
+
 
 // defining port with fallback
 const PORT = process.env.PORT
@@ -50,6 +54,7 @@ const PORT = process.env.PORT
 app.listen(PORT, ()=>{
     console.log(`Server is running on port ${PORT}`)
 });
+
 
 // exporting app
 module.exports = app;

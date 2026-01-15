@@ -7,6 +7,8 @@ import paymentRoutes from "./routes/payment.routes.js";
 import transactionRoutes from "./routes/transaction.routes.js";
 import receiptRoutes from "./routes/receipt.routes.js";
 import errorHandler from "./middleware/error.middleware.js";
+import countRoutes from "./routes/count.routes.js"; // ✅ ES Module import
+
 
 const app = express();
 
@@ -20,6 +22,8 @@ connectDB();
 app.use("/payments", paymentRoutes);
 app.use("/transactions", transactionRoutes);
 app.use("/receipts", receiptRoutes);
+app.use("/api/transactions", countRoutes); // ✅ Using imported countRoutes
+
 
 // Error handler (should be after all routes)
 app.use(errorHandler);
