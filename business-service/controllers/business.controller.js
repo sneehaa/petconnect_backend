@@ -183,9 +183,7 @@ exports.resetPassword = async (req, res) => {
     res.status(400).json({ success: false, message: e.message });
   }
 };
-// =======================
-// COUNT BUSINESSES
-// =======================
+
 exports.getBusinessCount = async (req, res) => {
   try {
     const totalBusinesses = await businessService.getBusinessCount();
