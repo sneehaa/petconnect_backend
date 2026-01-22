@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
 const authGuard = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -6,16 +6,16 @@ const authGuard = (req, res, next) => {
     console.log("Authorization header missing!");
     return res.status(401).json({
       success: false,
-      message: "Authorization header missing!"
+      message: "Authorization header missing!",
     });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
   if (!token) {
     console.log("Token missing!");
     return res.status(401).json({
       success: false,
-      message: "Token missing!"
+      message: "Token missing!",
     });
   }
 
@@ -25,14 +25,14 @@ const authGuard = (req, res, next) => {
     req.user = {
       id: decodedData.id,
       role: decodedData.role,
-      permissions: decodedData.permissions
+      permissions: decodedData.permissions,
     };
     next();
   } catch (error) {
     console.error("Invalid token!", error); // Log the error for debugging
     res.status(401).json({
       success: false,
-      message: "Invalid token!"
+      message: "Invalid token!",
     });
   }
 };
@@ -43,16 +43,16 @@ const authGuardAdmin = (req, res, next) => {
   if (!authHeader) {
     return res.status(401).json({
       success: false,
-      message: "Authorization header missing!"
+      message: "Authorization header missing!",
     });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({
       success: false,
-      message: "Token missing!"
+      message: "Token missing!",
     });
   }
 
@@ -61,13 +61,14 @@ const authGuardAdmin = (req, res, next) => {
     req.user = {
       id: decodedData.id,
       role: decodedData.role,
-      permissions: decodedData.permissions
+      permissions: decodedData.permissions,
     };
 
     if (decodedData.isAdmin !== true) {
-      return res.status(403).json({ // Changed to 403 for permission denied
+      return res.status(403).json({
+        // Changed to 403 for permission denied
         success: false,
-        message: "Permission denied!"
+        message: "Permission denied!",
       });
     }
 
@@ -76,7 +77,51 @@ const authGuardAdmin = (req, res, next) => {
     console.error("Invalid token!", error); // Log the error for debugging
     res.status(401).json({
       success: false,
-      message: "Invalid token!"
+      message: "Invalid token!",
+    });
+  }
+};
+
+const authGuardBusiness = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization header missing",
+    });
+  }
+
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "Token missing",
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // 🔒 Business-only access
+    if (decoded.role !== "BUSINESS") {
+      return res.status(403).json({
+        success: false,
+        message: "Business access only",
+      });
+    }
+
+    // Attach business identity
+    req.business = {
+      id: decoded.id,
+    };
+
+    next();
+  } catch (error) {
+    console.error("Invalid token:", error.message);
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
     });
   }
 };
@@ -84,4 +129,5 @@ const authGuardAdmin = (req, res, next) => {
 module.exports = {
   authGuard,
   authGuardAdmin,
+  authGuardBusiness,
 };

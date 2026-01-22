@@ -1,179 +1,247 @@
-const axios = require("axios");
+const mongoose = require("mongoose");
+const paymentRepo = require("../repository/payment.repository");
+const walletRepo = require("../repository/wallet.repository");
+const rabbitmq = require("../utils/rabbitmq");
+const redisClient = require("../utils/redisClient");
 const { v4: uuidv4 } = require("uuid");
-const Payment = require("../models/payment.model");
-const Transaction = require("../models/transaction.model");
-const Receipt = require("../models/receipt.model");
-const { initiateKhalti, verifyKhalti } = require("../services/khalti.service");
 
-const initiatePayment = async (req, res) => {
+const PAYMENT_EXCHANGE = "payment_events_exchange";
+
+function toObjectId(id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error(`Invalid ID format: ${id}`);
+  }
+  return new mongoose.Types.ObjectId(id);
+}
+
+async function updatePaymentCache(payment) {
+  if (!payment) return;
+  await redisClient.setEx(
+    `payment:${payment._id}`,
+    600,
+    JSON.stringify(payment),
+  );
+  await redisClient.setEx(
+    `payment:adoption:${payment.adoptionId}`,
+    600,
+    JSON.stringify(payment),
+  );
+}
+
+exports.initiatePayment = async (paymentData) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+    // Generate unique transaction ID
+    const transactionId = `TXN${Date.now()}${uuidv4().slice(0, 8)}`;
 
-    const { adoptionId, amount } = req.body;
-    if (!adoptionId || !amount) {
-      return res.status(400).json({ success: false, message: "Missing fields" });
-    }
-
-    const adoptionRes = await axios.get(
-      `${process.env.ADOPTION_SERVICE_URL}/${adoptionId}`,
-      { headers: { Authorization: req.headers.authorization } }
+    const payment = await paymentRepo.createPayment(
+      {
+        ...paymentData,
+        transactionId,
+        status: "pending",
+      },
+      session,
     );
 
-    if (!adoptionRes.data.success || !adoptionRes.data.adoption) {
-      return res.status(404).json({ success: false, message: "Adoption not found" });
-    }
+    await updatePaymentCache(payment);
 
-    const adoption = adoptionRes.data.adoption;
-
-    if (adoption.status !== "payment_pending") {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Adoption not ready for payment. Status: ${adoption.status}` 
-      });
-    }
-
-    const referenceId = uuidv4();
-    const payment = await Payment.create({
-      userId: req.user.id,
-      adoptionId,
-      businessId: adoption.businessId,
-      referenceId,
-      amount,
-      serviceType: "KHALTI",
-      status: "PENDING",
-    });
-
-    const khaltiResponse = await initiateKhalti({
-      amount: amount * 100,
-      purchase_order_id: payment._id.toString(),
-      purchase_order_name: `Pet Adoption - ${adoption.petId}`,
-      return_url: process.env.PAYMENT_SUCCESS_URL || "http://localhost:3000/payment-success",
-    });
-
-    payment.khalti = { pidx: khaltiResponse.pidx };
-    await payment.save();
-
-    return res.status(200).json({ 
-      success: true, 
-      message: "Payment initiated successfully",
-      data: { 
-        pidx: khaltiResponse.pidx, 
-        paymentId: payment._id,
-        payment_url: khaltiResponse.payment_url || khaltiResponse.pidx
-      }
-    });
-    
-  } catch (err) {
-    console.error("Initiate payment error:", err.message);
-    return res.status(500).json({ 
-      success: false, 
-      message: `Payment initiation failed: ${err.message}` 
-    });
-  }
-};
-
-const verifyPayment = async (req, res) => {
-  try {
-    const { pidx } = req.body;
-    if (!pidx) {
-      return res.status(400).json({ success: false, message: "pidx required" });
-    }
-
-    const verification = await verifyKhalti(pidx);
-    const payment = await Payment.findOne({ "khalti.pidx": pidx });
-    if (!payment) {
-      return res.status(404).json({ success: false, message: "Payment not found" });
-    }
-
-    if (verification.status !== "Completed") {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Payment not completed. Status: ${verification.status}` 
-      });
-    }
-
-    payment.status = "SUCCESS";
-    payment.paidAt = new Date();
-    await payment.save();
-
-    await Transaction.create({
+    // Publish payment initiated event
+    await rabbitmq.publish(PAYMENT_EXCHANGE, "payment.initiated", {
+      paymentId: payment._id,
+      adoptionId: payment.adoptionId,
       userId: payment.userId,
       businessId: payment.businessId,
-      paymentId: payment._id,
       amount: payment.amount,
-      status: "SUCCESS",
-      title: "Adoption Payment",
-      type: "PAYMENT"
+      transactionId,
     });
 
-    const receiptNumber = `RCPT-${Date.now()}-${payment._id.toString().slice(-6)}`;
-    await Receipt.create({
-      paymentId: payment._id,
-      userId: payment.userId,
-      receiptNumber,
-      amount: payment.amount,
-      issuedAt: new Date()
-    });
+    await session.commitTransaction();
+    return payment;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
 
-    try {
-      await axios.patch(
-        `${process.env.ADOPTION_SERVICE_URL}/${payment.adoptionId}/mark-paid`,
-        { paymentId: payment._id },
-        { headers: { Authorization: req.headers.authorization } }
+exports.processPayment = async (paymentId, paymentMethod = "wallet") => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const payment = await paymentRepo.updatePayment(
+      paymentId,
+      { status: "processing", paymentMethod },
+      session,
+    );
+
+    if (!payment) throw new Error("Payment not found");
+
+    // Check user wallet balance
+    const userWallet = await walletRepo.findByUserId(payment.userId, session);
+    if (!userWallet) throw new Error("User wallet not found");
+
+    if (userWallet.balance < payment.amount) {
+      throw new Error("Insufficient balance");
+    }
+
+    // Deduct from user wallet
+    userWallet.balance -= payment.amount;
+    userWallet.transactions.push({
+      transactionId: payment.transactionId,
+      type: "debit",
+      amount: payment.amount,
+      description: `Payment for adoption #${payment.adoptionId}`,
+      referenceId: payment._id,
+      referenceModel: "Payment",
+      status: "success",
+    });
+    await walletRepo.updateWallet(userWallet, session);
+
+    // Credit to business wallet
+    const businessWallet = await walletRepo.findByUserId(
+      payment.businessId,
+      session,
+    );
+    if (!businessWallet) {
+      // Create business wallet if doesn't exist
+      await walletRepo.createWallet(
+        {
+          userId: payment.businessId,
+          balance: payment.amount,
+          role: "business",
+        },
+        session,
       );
-    } catch (adoptionErr) {
-      console.error("Failed to update adoption service:", adoptionErr.message);
+    } else {
+      businessWallet.balance += payment.amount;
+      businessWallet.transactions.push({
+        transactionId: payment.transactionId,
+        type: "credit",
+        amount: payment.amount,
+        description: `Payment received for adoption #${payment.adoptionId}`,
+        referenceId: payment._id,
+        referenceModel: "Payment",
+        status: "success",
+      });
+      await walletRepo.updateWallet(businessWallet, session);
     }
 
-    return res.status(200).json({ 
-      success: true, 
-      message: "Payment verified successfully",
-      data: { 
-        paymentId: payment._id,
-        receiptNumber,
-        amount: payment.amount
-      }
+    // Update payment status
+    const updatedPayment = await paymentRepo.updatePayment(
+      paymentId,
+      {
+        status: "completed",
+        completedAt: new Date(),
+      },
+      session,
+    );
+
+    await updatePaymentCache(updatedPayment);
+
+    // Clear cache for both wallets
+    await redisClient.del(`wallet:${payment.userId}`);
+    await redisClient.del(`wallet:${payment.businessId}`);
+
+    // Publish payment completed event
+    await rabbitmq.publish(PAYMENT_EXCHANGE, "payment.completed", {
+      paymentId: updatedPayment._id,
+      adoptionId: updatedPayment.adoptionId,
+      userId: updatedPayment.userId,
+      businessId: updatedPayment.businessId,
+      amount: updatedPayment.amount,
+      transactionId: updatedPayment.transactionId,
     });
-  } catch (err) {
-    console.error("Verify payment error:", err.message);
-    return res.status(500).json({ 
-      success: false, 
-      message: `Verification failed: ${err.message}` 
+
+    await session.commitTransaction();
+    return updatedPayment;
+  } catch (error) {
+    await session.abortTransaction();
+
+    // Update payment as failed
+    await paymentRepo.updatePayment(paymentId, {
+      status: "failed",
+      metadata: { error: error.message },
     });
+
+    // Publish payment failed event
+    await rabbitmq.publish(PAYMENT_EXCHANGE, "payment.failed", {
+      paymentId,
+      reason: error.message,
+    });
+
+    throw error;
+  } finally {
+    session.endSession();
   }
 };
 
-const getMyTransactions = async (req, res) => {
-  try {
-    const transactions = await Transaction.find({ userId: req.user.id }).sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, data: transactions });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Failed to get transactions" });
-  }
+exports.getUserPayments = async (userId, page = 1, limit = 10) => {
+  const cacheKey = `user_payments:${userId}:page:${page}:limit:${limit}`;
+  const cached = await redisClient.get(cacheKey);
+
+  if (cached) return JSON.parse(cached);
+
+  const payments = await paymentRepo.findByUserId(userId, page, limit);
+
+  await redisClient.setEx(cacheKey, 300, JSON.stringify(payments));
+  return payments;
 };
 
-const getReceiptByPaymentId = async (req, res) => {
-  try {
-    const receipt = await Receipt.findOne({ 
-      paymentId: req.params.paymentId, 
-      userId: req.user.id 
-    });
-    
-    if (!receipt) {
-      return res.status(404).json({ success: false, message: "Receipt not found" });
-    }
-    
-    return res.status(200).json({ success: true, data: receipt });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Failed to get receipt" });
-  }
+exports.getBusinessEarnings = async (businessId, page = 1, limit = 10) => {
+  const cacheKey = `business_earnings:${businessId}:page:${page}:limit:${limit}`;
+  const cached = await redisClient.get(cacheKey);
+
+  if (cached) return JSON.parse(cached);
+
+  const payments = await paymentRepo.findByBusinessId(businessId, page, limit);
+
+  await redisClient.setEx(cacheKey, 300, JSON.stringify(payments));
+  return payments;
 };
 
-module.exports = {
-  initiatePayment,
-  verifyPayment,
-  getMyTransactions,
-  getReceiptByPaymentId,
+exports.getBusinessStats = async (
+  businessId,
+  startDate = null,
+  endDate = null,
+) => {
+  const cacheKey = `business_stats:${businessId}:${startDate}:${endDate}`;
+  const cached = await redisClient.get(cacheKey);
+
+  if (cached) return JSON.parse(cached);
+
+  const stats = await paymentRepo.getPaymentStats(
+    businessId,
+    startDate,
+    endDate,
+  );
+
+  await redisClient.setEx(cacheKey, 300, JSON.stringify(stats));
+  return stats;
+};
+
+exports.getAllTransactions = async (page = 1, limit = 20, filters = {}) => {
+  const cacheKey = `all_transactions:page:${page}:limit:${limit}:${JSON.stringify(filters)}`;
+  const cached = await redisClient.get(cacheKey);
+
+  if (cached) return JSON.parse(cached);
+
+  const payments = await paymentRepo.findAllPayments(page, limit, filters);
+
+  await redisClient.setEx(cacheKey, 180, JSON.stringify(payments));
+  return payments;
+};
+
+exports.getPaymentById = async (paymentId) => {
+  const cached = await redisClient.get(`payment:${paymentId}`);
+  if (cached) return JSON.parse(cached);
+
+  const payment = await paymentRepo.findByAdoptionId(paymentId);
+  if (!payment) throw new Error("Payment not found");
+
+  await updatePaymentCache(payment);
+  return payment;
 };

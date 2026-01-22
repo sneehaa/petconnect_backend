@@ -1,20 +1,36 @@
-// routes/payment.routes.js
 const express = require("express");
 const router = express.Router();
-const { authGuard } = require("../middleware/auth.middleware"); 
 const paymentController = require("../controllers/payment.controller");
+const {
+  authGuard,
+  authGuardAdmin,
+  authGuardBusiness,
+} = require("../middleware/auth.middleware");
 
+router.post("/wallet/load", authGuard, paymentController.loadWallet);
+router.get("/wallet/balance", authGuard, paymentController.getWalletBalance);
+router.get(
+  "/wallet/transactions",
+  authGuard,
+  paymentController.getTransactionHistory,
+);
 
-// User initiates Khalti payment
-router.post("/khalti/initiate", authGuard, paymentController.initiatePayment);
+router.post("/initiate", authGuard, paymentController.initiatePayment);
+router.post("/process", authGuard, paymentController.processPayment);
+router.get("/user/payments", authGuard, paymentController.getUserPayments);
+router.get("/:paymentId", authGuard, paymentController.getPaymentDetails);
 
-// Khalti verification
-router.post("/khalti/verify", paymentController.verifyPayment);
+router.get(
+  "/business/earnings",
+  authGuardBusiness,
+  paymentController.getBusinessEarnings,
+);
 
-// User transaction history
-router.get("/transactions/my-history", authGuard, paymentController.getMyTransactions);
-
-// Get receipt
-router.get("/receipts/:paymentId", authGuard, paymentController.getReceiptByPaymentId);
+router.get(
+  "/admin/transactions",
+  authGuard,
+  authGuardAdmin,
+  paymentController.getAllTransactions,
+);
 
 module.exports = router;

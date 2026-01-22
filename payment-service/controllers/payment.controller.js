@@ -1,142 +1,234 @@
-// controllers/payment.controller.js
-const { v4: uuidv4 } = require("uuid");
-const Payment = require("../models/payment.model");
-const Transaction = require("../models/transaction.model");
-const Receipt = require("../models/receipt.model");
-const { initiateKhalti, verifyKhalti } = require("../services/khalti.service");
+const paymentService = require("../services/payment.service");
+const walletService = require("../services/wallet.service");
 
-const initiatePayment = async (req, res) => {
+exports.initiatePayment = async (req, res) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+    const { adoptionId, businessId, petId, amount } = req.body;
+    const userId = req.user.userId;
 
-    const { adoptionId, amount } = req.body;
-    if (!adoptionId || !amount || amount < 10) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Need adoption ID and amount (min: NPR 10)" 
+    if (!adoptionId || !businessId || !petId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
       });
     }
 
-    // Create payment record
-    const payment = await Payment.create({
-      userId: req.user.id,
+    const payment = await paymentService.initiatePayment({
+      userId,
+      businessId,
       adoptionId,
+      petId,
       amount,
-      status: "PENDING",
-      referenceId: uuidv4(),
-      metadata: {
-        userEmail: req.user.email,
-        userName: req.user.name
-      }
     });
 
-    // Get mock payment ID
-    const khaltiResponse = await initiateKhalti({
-      amount: amount * 100,
-      purchase_order_id: payment._id.toString(),
-      purchase_order_name: `Pet Adoption #${adoptionId.slice(0, 6)}`
-    });
-
-    // Save payment ID
-    payment.khaltiPidx = khaltiResponse.pidx;
-    await payment.save();
-
-    // Simple response for Flutter
-    res.json({
+    res.status(201).json({
       success: true,
-      message: "Ready for mock payment",
-      data: {
-        pidx: khaltiResponse.pidx,
-        paymentId: payment._id,
-        amount: amount,
-        nextStep: "Call verify endpoint to complete"
-      }
+      message: "Payment initiated",
+      payment,
     });
-    
   } catch (err) {
-    console.error("Initiate error:", err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-const verifyPayment = async (req, res) => {
+exports.processPayment = async (req, res) => {
   try {
-    const { pidx } = req.body;
-    if (!pidx) {
-      return res.status(400).json({ success: false, message: "Need pidx" });
-    }
+    const { paymentId, paymentMethod } = req.body;
 
-    // Verify mock payment
-    const verification = await verifyKhalti(pidx);
-    
-    // Find and update payment
-    const payment = await Payment.findOne({ khaltiPidx: pidx });
-    if (!payment) {
-      return res.status(404).json({ success: false, message: "Payment not found" });
-    }
+    const payment = await paymentService.processPayment(
+      paymentId,
+      paymentMethod,
+    );
 
-    payment.status = "SUCCESS";
-    payment.paidAt = new Date();
-    await payment.save();
-
-    // Create transaction
-    await Transaction.create({
-      userId: payment.userId,
-      paymentId: payment._id,
-      amount: payment.amount,
-      status: "SUCCESS",
-      title: "Pet Adoption Payment"
-    });
-
-    // Generate receipt
-    const receiptNumber = `RCPT-${Date.now()}`;
-    await Receipt.create({
-      paymentId: payment._id,
-      userId: payment.userId,
-      receiptNumber,
-      amount: payment.amount
-    });
-
-    // Success response
     res.json({
       success: true,
-      message: "✅ Payment Successful (College Project Demo)",
-      data: {
-        paymentId: payment._id,
-        receiptNumber,
-        amount: payment.amount,
-        paidAt: payment.paidAt
-      }
+      message: "Payment processed successfully",
+      payment,
     });
-    
   } catch (err) {
-    console.error("Verify error:", err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-// Other functions remain simple...
-const getMyTransactions = async (req, res) => {
-  const transactions = await Transaction.find({ userId: req.user.id });
-  res.json({ success: true, data: transactions });
-};
+exports.getUserPayments = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const userId = req.user.userId;
 
-const getReceiptByPaymentId = async (req, res) => {
-  const receipt = await Receipt.findOne({ 
-    paymentId: req.params.paymentId, 
-    userId: req.user.id 
-  });
-  if (!receipt) {
-    return res.status(404).json({ success: false, message: "Receipt not found" });
+    const payments = await paymentService.getUserPayments(
+      userId,
+      parseInt(page),
+      parseInt(limit),
+    );
+
+    res.json({
+      success: true,
+      payments,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
-  res.json({ success: true, data: receipt });
 };
 
-module.exports = {
-  initiatePayment,
-  verifyPayment,
-  getMyTransactions,
-  getReceiptByPaymentId
+exports.getBusinessEarnings = async (req, res) => {
+  try {
+    const businessId = req.user.userId;
+    const { page = 1, limit = 10, startDate, endDate } = req.query;
+
+    if (req.user.role !== "business") {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Business accounts only",
+      });
+    }
+
+    const payments = await paymentService.getBusinessEarnings(
+      businessId,
+      parseInt(page),
+      parseInt(limit),
+    );
+
+    const stats = await paymentService.getBusinessStats(
+      businessId,
+      startDate,
+      endDate,
+    );
+
+    res.json({
+      success: true,
+      payments,
+      stats: stats[0] || {
+        totalAmount: 0,
+        totalTransactions: 0,
+        averageAmount: 0,
+      },
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.getAllTransactions = async (req, res) => {
+  try {
+    if (req.user.role !== "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Super Admin only",
+      });
+    }
+
+    const { page = 1, limit = 20, status, businessId, userId } = req.query;
+    const filters = {};
+
+    if (status) filters.status = status;
+    if (businessId) filters.businessId = businessId;
+    if (userId) filters.userId = userId;
+
+    const payments = await paymentService.getAllTransactions(
+      parseInt(page),
+      parseInt(limit),
+      filters,
+    );
+
+    res.json({
+      success: true,
+      payments,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.getPaymentDetails = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+
+    const payment = await paymentService.getPaymentById(paymentId);
+
+    res.json({
+      success: true,
+      payment,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.loadWallet = async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const userId = req.user.userId;
+    const role = req.user.role;
+
+    const wallet = await walletService.loadMoney(userId, amount, role);
+
+    res.json({
+      success: true,
+      message: "Wallet loaded successfully",
+      wallet,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.getWalletBalance = async (req, res) => {
+  try {
+    const wallet = await walletService.getWallet(req.user.userId);
+
+    res.json({
+      success: true,
+      balance: wallet.balance,
+      wallet,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.getTransactionHistory = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const userId = req.user.userId;
+
+    const transactions = await walletService.getUserTransactions(
+      userId,
+      parseInt(page),
+      parseInt(limit),
+    );
+
+    res.json({
+      success: true,
+      ...transactions,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
 };
