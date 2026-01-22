@@ -11,9 +11,9 @@ const app = express();
 // dotenv config
 dotenv.config();
 
-// cloudinary config
+// Cloudinary config
 cloudinary.config({ 
-  cloud_name: process.env.CLOUD_NAME, 
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
   api_key: process.env.CLOUDINARY_API_KEY, 
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
@@ -43,8 +43,9 @@ app.get("/test", (req,res) => {
 app.use('/api/business', require('./routes/business.routes'))
 
 
+
 // defining port
-const PORT = process.env.PORT;
+const PORT = process.env.PORT
 app.listen(PORT, ()=>{
     console.log(`Server is running on port ${PORT}`)
 })

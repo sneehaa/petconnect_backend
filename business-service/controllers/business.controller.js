@@ -2,7 +2,13 @@ const businessService = require("../services/business.service");
 
 exports.registerBusiness = async (req, res) => {
   try {
-    const { business, tempToken } = await businessService.register(req.body);
+    // Prepare data with profile image if uploaded
+    const registrationData = {
+      ...req.body,
+      profileImageFile: req.file // Pass the file object to service
+    };
+    
+    const { business, tempToken } = await businessService.register(registrationData);
 
     res.status(201).json({
       success: true,
@@ -70,6 +76,26 @@ exports.uploadDocuments = async (req, res) => {
   }
 };
 
+exports.uploadProfileImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      throw new Error("Profile image is required");
+    }
+
+    const business = await businessService.uploadProfileImage(
+      req.business.id,
+      req.file
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Profile image uploaded successfully",
+      business,
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
 
 exports.approveBusiness = async (req, res) => {
   try {
@@ -107,11 +133,6 @@ exports.deleteBusiness = async (req, res) => {
   }
 };
 
-// =======================
-// BUSINESS → ADOPTION
-// =======================
-
-// Approve adoption (business call)
 exports.approveAdoption = async (req, res) => {
   try {
     const { applicationId } = req.params;
@@ -128,7 +149,6 @@ exports.approveAdoption = async (req, res) => {
   }
 };
 
-// Reject adoption (business call)
 exports.rejectAdoption = async (req, res) => {
   try {
     const { applicationId } = req.params;

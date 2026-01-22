@@ -30,16 +30,9 @@ const BusinessSchema = new mongoose.Schema(
     address: {
       type: String,
     },
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number],
-        default: [0, 0],
-      },
+    profileImage: {
+      type: String,
+      default: null,
     },
     role: {
       type: String,
@@ -64,6 +57,5 @@ const BusinessSchema = new mongoose.Schema(
   }
 );
 
-BusinessSchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model("Business", BusinessSchema);

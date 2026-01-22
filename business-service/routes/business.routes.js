@@ -1,27 +1,52 @@
 const express = require("express");
 const router = express.Router();
+
 const businessController = require("../controllers/business.controller");
 const {
   authGuardBusiness,
   authGuardAdmin,
 } = require("../middleware/authGuard");
 const tempAuthGuard = require("../middleware/tempauth");
-const uploadBusinessDoc = require("../multer/business.multer");
 
-// =====================
-// PUBLIC
-// =====================
-router.post("/register", businessController.registerBusiness);
+const {
+  uploadBusinessDoc,
+  uploadBusinessProfileImage,
+} = require("../multer/business.multer");
+
+// Register route with profile image upload
+router.post(
+  "/register",
+  uploadBusinessProfileImage.single("profileImage"),
+  businessController.registerBusiness
+);
+
 router.post("/login", businessController.loginBusiness);
-router.get("/", businessController.getApprovedBusinesses)
-router.get("/:businessId", businessController.getBusinessDetails);
 
-// =====================
-// AUTHENTICATED BUSINESS
-// =====================
+router.get("/", businessController.getApprovedBusinesses);
+
 router.get("/me", authGuardBusiness, businessController.getMyBusiness);
+
 router.post("/profile", authGuardBusiness, businessController.createProfile);
-router.put("/update-profile", authGuardBusiness, businessController.updateProfile);
+
+router.put(
+  "/update-profile",
+  authGuardBusiness,
+  businessController.updateProfile
+);
+
+router.post(
+  "/documents",
+  authGuardBusiness,
+  uploadBusinessDoc.single("document"),
+  businessController.uploadDocuments
+);
+
+router.put(
+  "/profile-image",
+  authGuardBusiness,
+  uploadBusinessProfileImage.single("profileImage"),
+  businessController.uploadProfileImage
+);
 
 router.post(
   "/upload-documents",
@@ -30,23 +55,18 @@ router.post(
   businessController.uploadDocuments
 );
 
-// ✅ APPROVE ADOPTION (BUSINESS ONLY)
 router.put(
   "/adoptions/approve/:applicationId",
   authGuardBusiness,
   businessController.approveAdoption
 );
 
-// ✅ REJECT ADOPTION (BUSINESS ONLY)
 router.put(
   "/adoptions/reject/:applicationId",
   authGuardBusiness,
   businessController.rejectAdoption
 );
 
-// =====================
-// ADMIN
-// =====================
 router.put(
   "/admin/approve/:businessId",
   authGuardAdmin,
@@ -70,5 +90,7 @@ router.delete(
   authGuardAdmin,
   businessController.deleteBusiness
 );
+
+router.get("/:businessId", businessController.getBusinessDetails);
 
 module.exports = router;
