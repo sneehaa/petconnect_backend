@@ -18,6 +18,10 @@ const petSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    amount: {
+      type: Number,
+      required: true,
+    },
     vaccinated: {
       type: Boolean,
       default: false,
@@ -38,7 +42,7 @@ const petSchema = new mongoose.Schema(
       default: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Pet", petSchema);

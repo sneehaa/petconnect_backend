@@ -28,6 +28,10 @@ class UserRepository {
   getAll(skip, limit) {
     return Users.find().select("-password").skip(skip).limit(limit);
   }
+
+  count() {
+    return Users.countDocuments();
+  }
 }
 
 module.exports = new UserRepository();

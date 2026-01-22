@@ -2,12 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const petController = require("../controllers/pet.controller");
-const countRoutes = require("./count.routes"); 
 const { authGuard } = require("../middleware/authGuard");
 const uploadPetImages = require("../multer/pet.multer");
-
-
-router.use("/", countRoutes); // /count
 
 // Get all pets
 router.get("/", petController.getAllPets);
@@ -23,7 +19,7 @@ router.post(
   "/",
   authGuard,
   uploadPetImages.array("photos", 5),
-  petController.createPet
+  petController.createPet,
 );
 
 // Update pet
@@ -31,14 +27,10 @@ router.put(
   "/:id",
   authGuard,
   uploadPetImages.array("photos", 5),
-  petController.updatePet
+  petController.updatePet,
 );
 
 // Delete pet
-router.delete(
-  "/:id",
-  authGuard,
-  petController.deletePet
-);
+router.delete("/:id", authGuard, petController.deletePet);
 
 module.exports = router;

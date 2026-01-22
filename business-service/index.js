@@ -5,7 +5,6 @@ const connectDB = require("./database/db");
 const cors = require("cors");
 const cloudinary = require("cloudinary").v2;
 
-
 // dotenv config
 dotenv.config();
 
@@ -43,7 +42,6 @@ app.get("/test", (req, res) => {
 
 // creating user routes
 app.use("/api/business", require("./routes/business.routes"));
-app.use("/api/business", require("./routes/count.routes"));
 
 // defining port with fallback
 const PORT = process.env.PORT;

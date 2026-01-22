@@ -14,6 +14,10 @@ class BusinessRepository {
     return Business.findOne({ email });
   }
 
+  async findByEmailRaw(email) {
+    return Business.findOne({ email }).select("+password");
+  }
+
   findByUsername(username) {
     return Business.findOne({ username });
   }

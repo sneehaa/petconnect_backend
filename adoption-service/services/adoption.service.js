@@ -20,7 +20,7 @@ class AdoptionService {
       // Check response structure
       if (!petRes.data.success) {
         throw new Error(
-          `Pet service error: ${petRes.data.message || "Unknown error"}`
+          `Pet service error: ${petRes.data.message || "Unknown error"}`,
         );
       }
 
@@ -109,12 +109,18 @@ class AdoptionService {
 
   async getAdoptionById(adoptionId) {
     try {
-      console.log("Getting adoption by ID from repo:", adoptionId);
+      console.log(`[SERVICE] Accessing Repo for ID: ${adoptionId}`);
+
       const adoption = await adoptionRepo.findById(adoptionId);
-      if (!adoption) throw new Error("Adoption not found");
+
+      if (!adoption) {
+        console.warn(`[SERVICE] No adoption found in DB for ID: ${adoptionId}`);
+        throw new Error("Adoption not found");
+      }
+
       return adoption;
     } catch (error) {
-      console.error("Get adoption by ID error:", error.message);
+      console.error(`[SERVICE ERROR] getAdoptionById: ${error.message}`);
       throw new Error(`Failed to get adoption: ${error.message}`);
     }
   }
@@ -144,7 +150,7 @@ class AdoptionService {
       // Get user email from user-service
       try {
         const userRes = await axios.get(
-          `${process.env.USER_SERVICE_URL}/profile/${adoption.userId}`
+          `${process.env.USER_SERVICE_URL}/profile/${adoption.userId}`,
         );
 
         // Send notification via notification service
@@ -154,7 +160,7 @@ class AdoptionService {
             to: userRes.data.user.email,
             subject: "Adoption Approved!",
             text: `Your adoption request has been approved. Please proceed to payment.`,
-          }
+          },
         );
       } catch (err) {
         console.error("Failed to send notification:", err.message);
@@ -184,7 +190,7 @@ class AdoptionService {
       // Get user email from user-service
       try {
         const userRes = await axios.get(
-          `${process.env.USER_SERVICE_URL}/profile/${adoption.userId}`
+          `${process.env.USER_SERVICE_URL}/profile/${adoption.userId}`,
         );
 
         // Send notification via notification service
@@ -194,7 +200,7 @@ class AdoptionService {
             to: userRes.data.user.email,
             subject: "Adoption Request Rejected",
             text: `Your adoption request was rejected. Reason: ${reason}`,
-          }
+          },
         );
       } catch (err) {
         console.error("Failed to send notification:", err.message);
@@ -218,47 +224,49 @@ class AdoptionService {
     }
   }
 
+  // Update in adoption.service.js
   async markAdoptionPaid(adoptionId, userId, paymentId) {
     try {
       const adoption = await adoptionRepo.findById(adoptionId);
-      if (!adoption) throw new Error("Adoption not found");
+      if (!adoption) throw new Error("Adoption record not found");
 
-      // BUSINESS LOGIC VALIDATION
-      if (adoption.userId !== userId) {
-        throw new Error("Unauthorized - Not your adoption");
+      // 1. Verify payment with the Payment Microservice
+      const paymentCheck = await axios.get(
+        `${process.env.PAYMENT_SERVICE_URL}/verify-internal/${paymentId}`,
+        {
+          headers: {
+            "x-internal-service-token": process.env.INTERNAL_SERVICE_TOKEN,
+          },
+        },
+      );
+
+      const paymentData = paymentCheck.data.payment;
+
+      // 2. Validation: Does the payment actually belong to this adoption and user?
+      if (paymentData.status !== "SUCCESS") {
+        throw new Error("Payment has not been completed yet");
+      }
+      if (
+        paymentData.adoptionId !== adoptionId ||
+        paymentData.userId !== userId
+      ) {
+        throw new Error("Payment data mismatch: Fraud attempt detected");
       }
 
+      // 3. Update status to completed
       adoption.status = "completed";
       adoption.payment = {
         paymentId: paymentId,
         isPaid: true,
+        amount: paymentData.amount,
         paidAt: new Date(),
       };
 
       await adoption.save();
-
-      // Notify business about payment
-      try {
-        const businessRes = await axios.get(
-          `${process.env.BUSINESS_SERVICE_URL}/business/${adoption.businessId}`
-        );
-
-        await axios.post(
-          `${process.env.NOTIFICATION_SERVICE_URL}/api/notifications/email`,
-          {
-            to: businessRes.data.business.email,
-            subject: "Payment Received",
-            text: `Payment received for adoption ${adoptionId}`,
-          }
-        );
-      } catch (err) {
-        console.error("Failed to send business notification:", err.message);
-      }
-
       return adoption;
     } catch (error) {
-      console.error("Mark adoption paid error:", error.message);
-      throw new Error(`Failed to mark paid: ${error.message}`);
+      console.error("Critical: markAdoptionPaid failed:", error.message);
+      throw error;
     }
   }
 }

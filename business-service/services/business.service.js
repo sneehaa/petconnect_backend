@@ -1,11 +1,9 @@
-
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
-const cloudinary = require('cloudinary').v2;
-const fs = require('fs');
+const cloudinary = require("cloudinary").v2;
+const fs = require("fs");
 const businessRepo = require("../repositories/business.repository");
-
 
 class BusinessService {
   async register(data) {
@@ -21,31 +19,40 @@ class BusinessService {
     data.password = await bcrypt.hash(data.password, 10);
     data.businessStatus = "Pending";
     data.role = "BUSINESS";
-    
+
     // Handle profile image upload to Cloudinary
     if (data.profileImageFile) {
       try {
         // Upload image to Cloudinary
-        const result = await cloudinary.uploader.upload(data.profileImageFile.path, {
-          folder: 'business-profiles',
-          public_id: `business-profile-${Date.now()}`,
-          resource_type: 'image'
-        });
-        
+        const result = await cloudinary.uploader.upload(
+          data.profileImageFile.path,
+          {
+            folder: "business-profiles",
+            public_id: `business-profile-${Date.now()}`,
+            resource_type: "image",
+          },
+        );
+
         // Set Cloudinary URL
         data.profileImage = result.secure_url;
-        
+
         // Delete the temporary file
         fs.unlinkSync(data.profileImageFile.path);
       } catch (uploadError) {
         // Clean up file if upload fails
-        if (data.profileImageFile && data.profileImageFile.path && fs.existsSync(data.profileImageFile.path)) {
+        if (
+          data.profileImageFile &&
+          data.profileImageFile.path &&
+          fs.existsSync(data.profileImageFile.path)
+        ) {
           fs.unlinkSync(data.profileImageFile.path);
         }
-        throw new Error("Failed to upload profile image: " + uploadError.message);
+        throw new Error(
+          "Failed to upload profile image: " + uploadError.message,
+        );
       }
     }
-    
+
     // Remove the file object from data before saving to database
     delete data.profileImageFile;
 
@@ -53,20 +60,20 @@ class BusinessService {
 
     // FIX: Add type: "TEMP" to the token payload
     const tempToken = jwt.sign(
-      { 
-        id: business._id, 
+      {
+        id: business._id,
         email: business.email,
-        type: "TEMP" 
+        type: "TEMP",
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1h" },
     );
 
     return { business, tempToken };
   }
 
   async login(email, password) {
-    const business = await businessRepo.findByEmail(email);
+    const business = await businessRepo.findByEmailRaw(email);
     if (!business) throw new Error("Business not found");
 
     const valid = await bcrypt.compare(password, business.password);
@@ -76,11 +83,10 @@ class BusinessService {
       throw new Error("Business not approved yet");
     }
 
-    // Regular login token doesn't need type
     const token = jwt.sign(
       { id: business._id, role: business.role },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "24h" },
     );
 
     const { password: _, ...safeBusiness } = business.toObject();
@@ -103,16 +109,16 @@ class BusinessService {
 
   async uploadDocuments(businessId, files) {
     const documentUrls = [];
-    
+
     // Upload each document to Cloudinary
     for (const file of files) {
       try {
         const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'business-documents',
-          resource_type: 'auto' 
+          folder: "business-documents",
+          resource_type: "auto",
         });
         documentUrls.push(result.secure_url);
-        
+
         fs.unlinkSync(file.path);
       } catch (uploadError) {
         if (file && file.path && fs.existsSync(file.path)) {
@@ -121,7 +127,7 @@ class BusinessService {
         throw new Error("Failed to upload document: " + uploadError.message);
       }
     }
-    
+
     return businessRepo.update(businessId, {
       $push: { documents: { $each: documentUrls } },
     });
@@ -129,15 +135,15 @@ class BusinessService {
 
   async uploadProfileImage(businessId, file) {
     let cloudinaryResult;
-    
+
     try {
       // Upload new image to Cloudinary
       cloudinaryResult = await cloudinary.uploader.upload(file.path, {
-        folder: 'business-profiles',
+        folder: "business-profiles",
         public_id: `business-${businessId}-profile-${Date.now()}`,
-        resource_type: 'image'
+        resource_type: "image",
       });
-      
+
       // Delete the temporary file
       fs.unlinkSync(file.path);
     } catch (uploadError) {
@@ -147,7 +153,7 @@ class BusinessService {
       }
       throw new Error("Failed to upload profile image: " + uploadError.message);
     }
-    
+
     return businessRepo.update(businessId, {
       profileImage: cloudinaryResult.secure_url,
     });
@@ -160,7 +166,7 @@ class BusinessService {
 
     if (!business.documents || business.documents.length === 0) {
       throw new Error(
-        "Business must upload verification documents before approval"
+        "Business must upload verification documents before approval",
       );
     }
 
@@ -185,20 +191,20 @@ class BusinessService {
     const business = await businessRepo.findById(businessId);
     if (business) {
       if (business.profileImage) {
-        const publicId = business.profileImage.split('/').pop().split('.')[0];
+        const publicId = business.profileImage.split("/").pop().split(".")[0];
         await cloudinary.uploader.destroy(`business-profiles/${publicId}`);
       }
-  
+
       if (business.documents && business.documents.length > 0) {
         for (const docUrl of business.documents) {
-          const publicId = docUrl.split('/').pop().split('.')[0];
+          const publicId = docUrl.split("/").pop().split(".")[0];
           await cloudinary.uploader.destroy(`business-documents/${publicId}`, {
-            resource_type: 'raw'
+            resource_type: "raw",
           });
         }
       }
     }
-    
+
     return businessRepo.delete(businessId);
   }
 
@@ -206,7 +212,7 @@ class BusinessService {
     const response = await axios.put(
       `${process.env.DASHBOARD_URL}/api/adoption-applications/approve/${applicationId}`,
       {},
-      { headers: { "x-business-id": businessId } }
+      { headers: { "x-business-id": businessId } },
     );
     return response.data;
   }
@@ -218,36 +224,35 @@ class BusinessService {
       const response = await axios.put(
         `${ADOPTION_URL}/business/adoptions/reject/${applicationId}`,
         { reason },
-        { headers: { "x-business-id": businessId } }
+        { headers: { "x-business-id": businessId } },
       );
       return response.data;
     } catch (err) {
-      if (err.response) throw new Error(err.response.data.message || "Adoption service error");
+      if (err.response)
+        throw new Error(err.response.data.message || "Adoption service error");
       else throw new Error(err.message || "Failed to call adoption service");
     }
   }
 
-
   async resetPassword(businessId, oldPassword, newPassword) {
-  const business = await businessRepo.findById(businessId);
-  if (!business) throw new Error("Business not found");
+    const business = await businessRepo.findById(businessId);
+    if (!business) throw new Error("Business not found");
 
-  const isMatch = await bcrypt.compare(oldPassword, business.password);
-  if (!isMatch) throw new Error("Old password is incorrect");
+    const isMatch = await bcrypt.compare(oldPassword, business.password);
+    if (!isMatch) throw new Error("Old password is incorrect");
 
-  business.password = newPassword;
-  await business.save();           
+    business.password = await bcrypt.hash(newPassword, 10);
+    await business.save();
 
-  return true;
-}
+    return true;
+  }
 
-
-//helper functions
+  //helper functions
   _generateToken(business) {
     return jwt.sign(
       { id: business._id, role: "BUSINESS" },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
   }
 
@@ -259,12 +264,9 @@ class BusinessService {
       throw new Error("Pet not found or pet-service unavailable");
     }
   }
+  async getBusinessCount() {
+    return await businessRepo.count();
+  }
 }
 
-exports.getBusinessCount = async () => {
-  return await Business.countDocuments();
-};
-
 module.exports = new BusinessService();
-
-

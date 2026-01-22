@@ -13,7 +13,6 @@ const {
   uploadBusinessProfileImage,
 } = require("../multer/business.multer");
 
-// Register route with profile image upload
 router.post(
   "/register",
   uploadBusinessProfileImage.single("profileImage"),
@@ -22,18 +21,13 @@ router.post(
 
 router.post("/login", businessController.loginBusiness);
 
-router.get("/nearby", businessController.getNearbyBusinesses);
+router.get("/me", authGuardBusiness, businessController.getMyBusiness);
+
 router.post(
   "/reset-password",
   authGuardBusiness,
   businessController.resetPassword,
 );
-router.get("/", businessController.getApprovedBusinesses);
-router.get("/:businessId", businessController.getBusinessDetails);
-
-router.get("/", businessController.getApprovedBusinesses);
-
-router.get("/me", authGuardBusiness, businessController.getMyBusiness);
 
 router.post("/profile", authGuardBusiness, businessController.createProfile);
 
@@ -43,18 +37,18 @@ router.put(
   businessController.updateProfile,
 );
 
-router.post(
-  "/documents",
-  authGuardBusiness,
-  uploadBusinessDoc.single("document"),
-  businessController.uploadDocuments,
-);
-
 router.put(
   "/profile-image",
   authGuardBusiness,
   uploadBusinessProfileImage.single("profileImage"),
   businessController.uploadProfileImage,
+);
+
+router.post(
+  "/documents",
+  authGuardBusiness,
+  uploadBusinessDoc.single("document"),
+  businessController.uploadDocuments,
 );
 
 router.post(
@@ -75,6 +69,8 @@ router.put(
   authGuardBusiness,
   businessController.rejectAdoption,
 );
+
+router.get("/admin/count", authGuardAdmin, businessController.getBusinessCount);
 
 router.put(
   "/admin/approve/:businessId",
@@ -100,8 +96,7 @@ router.delete(
   businessController.deleteBusiness,
 );
 
+router.get("/", businessController.getApprovedBusinesses);
 router.get("/:businessId", businessController.getBusinessDetails);
-
-module.exports = router;
 
 module.exports = router;
