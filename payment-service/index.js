@@ -5,6 +5,17 @@ const connectDB = require('./database/db');
 const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
 
+<<<<<<< HEAD
+import express from "express";
+import connectDB from "./database/db.js";
+import paymentRoutes from "./routes/payment.routes.js";
+import transactionRoutes from "./routes/transaction.routes.js";
+import receiptRoutes from "./routes/receipt.routes.js";
+import errorHandler from "./middleware/error.middleware.js";
+import countRoutes from "./routes/count.routes.js"; // ✅ ES Module import
+
+=======
+>>>>>>> 4fef8b60fd1a565ebb5ad287c89035cd1fd56a01
 
 const app = express();
 
@@ -28,7 +39,16 @@ app.use(cors(corsOptions))
 
 connectDB();
 
+<<<<<<< HEAD
+// Routes
+app.use("/payments", paymentRoutes);
+app.use("/transactions", transactionRoutes);
+app.use("/receipts", receiptRoutes);
+app.use("/api/transactions", countRoutes); // ✅ Using imported countRoutes
+
+=======
 app.use(express.json());
+>>>>>>> 4fef8b60fd1a565ebb5ad287c89035cd1fd56a01
 
 app.use(express.urlencoded({ extended: true }));
 

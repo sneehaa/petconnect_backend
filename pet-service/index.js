@@ -6,6 +6,8 @@ const connectDB = require('./database/db');
 const cors = require('cors');
 const path = require('path');
 const cloudinary = require('cloudinary').v2;
+const countRoutes = require("./routes/count.routes");
+
 
 const app = express();
 
@@ -44,6 +46,8 @@ app.get("/test", (req,res) => {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/pets', require('./routes/pet.routes'))
+app.use("/api/pets", countRoutes);
+
 
 
 const PORT = process.env.PORT;

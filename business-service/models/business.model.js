@@ -1,4 +1,6 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+
 
 const BusinessSchema = new mongoose.Schema(
   {
@@ -58,4 +60,14 @@ const BusinessSchema = new mongoose.Schema(
 );
 
 
+BusinessSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+// Method to compare passwords
+BusinessSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 module.exports = mongoose.model("Business", BusinessSchema);

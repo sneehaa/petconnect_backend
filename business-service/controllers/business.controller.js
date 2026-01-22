@@ -165,3 +165,38 @@ exports.rejectAdoption = async (req, res) => {
     res.status(400).json({ success: false, message: e.message });
   }
 };
+
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Old password and new password are required" });
+    }
+
+    // Call service to reset password
+    await businessService.resetPassword(req.business.id, oldPassword, newPassword);
+
+    res.status(200).json({ success: true, message: "Password reset successfully" });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+// =======================
+// COUNT BUSINESSES
+// =======================
+exports.getBusinessCount = async (req, res) => {
+  try {
+    const totalBusinesses = await businessService.getBusinessCount();
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalBusinesses,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+

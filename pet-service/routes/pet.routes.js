@@ -2,18 +2,31 @@ const express = require("express");
 const router = express.Router();
 
 const petController = require("../controllers/pet.controller");
+const countRoutes = require("./count.routes"); // <-- count route
 const { authGuard } = require("../middleware/authGuard");
 const uploadPetImages = require("../multer/pet.multer");
 
+// ---------------------
+// Mount count route first (STATIC routes first!)
+// ---------------------
+router.use("/", countRoutes); // /count
+
+// ---------------------
+// Public pet routes
+// ---------------------
 
 // Get all pets
 router.get("/", petController.getAllPets);
 
-// Get pet by ID
-router.get("/:id", petController.getPetDetail);
-
 // Get pets by business
 router.get("/business/:businessId", petController.getPetsByBusiness);
+
+// Get pet by ID (dynamic route)
+router.get("/:id", petController.getPetDetail);
+
+// ---------------------
+// Protected routes (authGuard)
+// ---------------------
 
 // Create pet (with images)
 router.post(
@@ -23,6 +36,7 @@ router.post(
   petController.createPet
 );
 
+// Update pet
 router.put(
   "/:id",
   authGuard,
@@ -30,6 +44,7 @@ router.put(
   petController.updatePet
 );
 
+// Delete pet
 router.delete(
   "/:id",
   authGuard,

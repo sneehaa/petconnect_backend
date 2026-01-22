@@ -17,10 +17,19 @@ const {
 router.post(
   "/register",
   uploadBusinessProfileImage.single("profileImage"),
-  businessController.registerBusiness
+  businessController.registerBusiness,
 );
 
 router.post("/login", businessController.loginBusiness);
+
+router.get("/nearby", businessController.getNearbyBusinesses);
+router.post(
+  "/reset-password",
+  authGuardBusiness,
+  businessController.resetPassword,
+);
+router.get("/", businessController.getApprovedBusinesses);
+router.get("/:businessId", businessController.getBusinessDetails);
 
 router.get("/", businessController.getApprovedBusinesses);
 
@@ -31,66 +40,68 @@ router.post("/profile", authGuardBusiness, businessController.createProfile);
 router.put(
   "/update-profile",
   authGuardBusiness,
-  businessController.updateProfile
+  businessController.updateProfile,
 );
 
 router.post(
   "/documents",
   authGuardBusiness,
   uploadBusinessDoc.single("document"),
-  businessController.uploadDocuments
+  businessController.uploadDocuments,
 );
 
 router.put(
   "/profile-image",
   authGuardBusiness,
   uploadBusinessProfileImage.single("profileImage"),
-  businessController.uploadProfileImage
+  businessController.uploadProfileImage,
 );
 
 router.post(
   "/upload-documents",
   tempAuthGuard,
   uploadBusinessDoc.single("document"),
-  businessController.uploadDocuments
+  businessController.uploadDocuments,
 );
 
 router.put(
   "/adoptions/approve/:applicationId",
   authGuardBusiness,
-  businessController.approveAdoption
+  businessController.approveAdoption,
 );
 
 router.put(
   "/adoptions/reject/:applicationId",
   authGuardBusiness,
-  businessController.rejectAdoption
+  businessController.rejectAdoption,
 );
 
 router.put(
   "/admin/approve/:businessId",
   authGuardAdmin,
-  businessController.approveBusiness
+  businessController.approveBusiness,
 );
 
 router.put(
   "/admin/reject/:businessId",
   authGuardAdmin,
-  businessController.rejectBusiness
+  businessController.rejectBusiness,
 );
 
 router.get(
   "/admin/approved",
   authGuardAdmin,
-  businessController.getApprovedBusinesses
+  businessController.getApprovedBusinesses,
 );
 
 router.delete(
   "/admin/:businessId",
   authGuardAdmin,
-  businessController.deleteBusiness
+  businessController.deleteBusiness,
 );
 
 router.get("/:businessId", businessController.getBusinessDetails);
+
+module.exports = router;
 
 module.exports = router;

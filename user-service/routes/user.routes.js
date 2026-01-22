@@ -20,5 +20,13 @@ router.delete('/delete/:userId', authGuard, userController.deleteUserAccount);
 
 // Route to send OTP via SMS
 router.post('/sendOTP', userController.sendOTP)
+router.get("/count", async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    res.json({ totalUsers });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to fetch users count" });
+  }
+});
 
 module.exports = router;
