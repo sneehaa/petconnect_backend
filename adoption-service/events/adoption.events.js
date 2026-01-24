@@ -1,17 +1,30 @@
 const rabbitmq = require("../utils/rabbitMQ");
 const adoptionService = require("../services/adoption.service");
+const adoptionEvents = require("../events/adoption.events");
 
 const BUSINESS_EXCHANGE = process.env.BUSINESS_EXCHANGE;
 const PAYMENT_EXCHANGE = process.env.PAYMENT_EXCHANGE;
+const PET_EXCHANGE = process.env.PET_EXCHANGE;
 
 exports.setupAdoptionListeners = () => {
+  rabbitmq.consume(
+    PET_EXCHANGE,
+    process.env.ADOPTION_PET_VALIDATION_QUEUE,
+    "pet.validation.response.*",
+    async (res, routingKey) => {
+      const parts = routingKey.split(".");
+      const correlationId = parts[parts.length - 1];
+      adoptionService.handleValidationResponse(res, correlationId);
+    },
+  );
+
   rabbitmq.consume(
     BUSINESS_EXCHANGE,
     process.env.ADOPTION_APPROVAL_QUEUE,
     "adoption.approval.requested",
     async (data) => {
       try {
-        await adoptionService.approveAdoption(
+        await adoptionEvents.approveAdoptionWithEvent(
           data.applicationId,
           data.businessId,
         );
@@ -27,7 +40,7 @@ exports.setupAdoptionListeners = () => {
     "adoption.rejection.requested",
     async (data) => {
       try {
-        await adoptionService.rejectAdoption(
+        await adoptionEvents.rejectAdoptionWithEvent(
           data.applicationId,
           data.businessId,
           data.reason,
@@ -39,11 +52,14 @@ exports.setupAdoptionListeners = () => {
   );
 
   rabbitmq.consume(
-    PAYMENT_EXCHANGE,
+    process.env.PAYMENT_EXCHANGE,
     process.env.ADOPTION_PAYMENT_QUEUE,
     "payment.success",
     async (data) => {
       try {
+        console.log(
+          `Payment success received for adoption: ${data.adoptionId}`,
+        );
         await adoptionService.markAdoptionPaid(
           data.adoptionId,
           data.userId,
@@ -51,7 +67,7 @@ exports.setupAdoptionListeners = () => {
           data.amount,
         );
       } catch (err) {
-        console.error("Failed to process payment event:", err.message);
+        console.error("Error marking adoption as paid:", err.message);
       }
     },
   );

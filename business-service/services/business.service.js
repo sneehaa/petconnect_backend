@@ -50,44 +50,24 @@ class BusinessService {
     const emailExists = await businessRepo.findByEmail(data.email);
     if (emailExists) throw new Error("Email already exists");
 
-    const usernameExists = await businessRepo.findByUsername(data.username);
-    if (usernameExists) throw new Error("Username already exists");
-
     data.password = await bcrypt.hash(data.password, 10);
     data.businessStatus = "Unverified";
     data.isEmailVerified = false;
     data.role = "BUSINESS";
 
     if (data.profileImageFile) {
-      try {
-        const result = await cloudinary.uploader.upload(
-          data.profileImageFile.path,
-          {
-            folder: "business-profiles",
-            resource_type: "image",
-          },
-        );
-        data.profileImage = result.secure_url;
-        fs.unlinkSync(data.profileImageFile.path);
-      } catch (uploadError) {
-        if (
-          data.profileImageFile?.path &&
-          fs.existsSync(data.profileImageFile.path)
-        ) {
-          fs.unlinkSync(data.profileImageFile.path);
-        }
-        throw new Error("Failed to upload image: " + uploadError.message);
-      }
+      const result = await cloudinary.uploader.upload(
+        data.profileImageFile.path,
+        {
+          folder: "business-profiles",
+        },
+      );
+      data.profileImage = result.secure_url;
+      fs.unlinkSync(data.profileImageFile.path);
     }
 
-    delete data.profileImageFile;
     const business = await businessRepo.create(data);
-
-    try {
-      await this.sendOTP(data.email);
-    } catch (err) {
-      console.error("OTP send failed during business registration");
-    }
+    await this.sendOTP(data.email);
 
     const tempToken = jwt.sign(
       { id: business._id, email: business.email, type: "TEMP" },
@@ -98,100 +78,83 @@ class BusinessService {
     return { business, tempToken };
   }
 
+  async uploadDocs(businessId, file) {
+    if (!file) throw new Error("No file uploaded");
+
+    try {
+      const result = await cloudinary.uploader.upload(file.path, {
+        folder: "business-docs",
+        resource_type: "auto",
+      });
+
+      const updated = await businessRepo.update(businessId, {
+        $push: { documents: result.secure_url },
+      });
+
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      return updated;
+    } catch (err) {
+      if (file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      throw new Error("Cloudinary Upload Failed: " + err.message);
+    }
+  }
+
+  async updateProfileImage(businessId, file) {
+    if (!file) throw new Error("No image file provided");
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder: "business-profile",
+    });
+    await businessRepo.update(businessId, { profileImage: result.secure_url });
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    return result.secure_url;
+  }
+
+  async createProfile(businessId, data) {
+    return await businessRepo.update(businessId, {
+      ...data,
+      profileCompleted: true,
+    });
+  }
+
+  async updateProfile(businessId, data) {
+    return await businessRepo.update(businessId, data);
+  }
+
   async login(email, password) {
     const business = await businessRepo.findByEmailRaw(email);
-    if (!business) throw new Error("Business not found");
-
-    const valid = await bcrypt.compare(password, business.password);
-    if (!valid) throw new Error("Invalid credentials");
-
-    if (!business.isEmailVerified) {
-      throw new Error("Please verify your email first");
+    if (!business || !(await bcrypt.compare(password, business.password))) {
+      throw new Error("Invalid credentials");
     }
-
-    if (business.businessStatus !== "Approved") {
-      throw new Error("Business not approved yet by Admin");
-    }
+    if (!business.isEmailVerified) throw new Error("Please verify email first");
+    if (business.businessStatus !== "Approved")
+      throw new Error("Admin approval pending");
 
     const token = jwt.sign(
       { id: business._id, role: business.role },
       process.env.JWT_SECRET,
       { expiresIn: "24h" },
     );
-
     const { password: _, ...safeBusiness } = business.toObject();
     return { token, business: safeBusiness };
   }
 
   async approve(businessId) {
-    const business = await businessRepo.findById(businessId);
-    if (!business) throw new Error("Business not found");
-
-    const updatedBusiness = await businessRepo.update(businessId, {
+    const updated = await businessRepo.update(businessId, {
       businessStatus: "Approved",
-      rejectionReason: null,
     });
-
     await rabbitmq.publish(BUSINESS_EXCHANGE, "business.approved", {
-      businessId: updatedBusiness._id,
-      email: updatedBusiness.email,
-      name: updatedBusiness.businessName,
+      businessId: updated._id,
+      email: updated.email,
     });
-
-    return updatedBusiness;
-  }
-
-  async reject(businessId, reason) {
-    const updatedBusiness = await businessRepo.update(businessId, {
-      businessStatus: "Rejected",
-      rejectionReason: reason,
-    });
-
-    await rabbitmq.publish(BUSINESS_EXCHANGE, "business.rejected", {
-      businessId: updatedBusiness._id,
-      reason,
-    });
-
-    return updatedBusiness;
-  }
-
-  async approveAdoption(businessId, applicationId) {
-    await rabbitmq.publish(ADOPTION_EXCHANGE, "adoption.approval.requested", {
-      applicationId,
-      businessId,
-      status: "approved",
-      timestamp: new Date(),
-    });
-    return { status: "processing" };
-  }
-
-  async rejectAdoption(businessId, applicationId, reason) {
-    await rabbitmq.publish(ADOPTION_EXCHANGE, "adoption.rejection.requested", {
-      applicationId,
-      businessId,
-      reason,
-      status: "rejected",
-      timestamp: new Date(),
-    });
-    return { status: "processing" };
-  }
-
-  async resetPassword(businessId, oldPassword, newPassword) {
-    const business = await businessRepo.findById(businessId);
-    if (!business) throw new Error("Business not found");
-    const isMatch = await bcrypt.compare(oldPassword, business.password);
-    if (!isMatch) throw new Error("Old password is incorrect");
-    business.password = await bcrypt.hash(newPassword, 10);
-    await business.save();
-    return true;
-  }
-
-  async getBusinessCount() {
-    return await businessRepo.findAll().countDocuments();
+    return updated;
   }
 
   async getById(id) {
     return await businessRepo.findById(id);
+  }
+
+  async delete(id) {
+    return await businessRepo.deleteById(id);
   }
 }
 

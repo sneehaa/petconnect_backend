@@ -19,7 +19,6 @@ async function connect(retries = 20, delay = 3000) {
       await new Promise((res) => setTimeout(res, delay));
     }
   }
-
   throw new Error("RabbitMQ channel not available after retries");
 }
 
@@ -37,10 +36,7 @@ async function publish(exchangeName, routingKey, message) {
       `Message published to '${exchangeName}' with routing key '${routingKey}'`,
     );
   } catch (error) {
-    console.error(
-      `Failed to publish message to '${exchangeName}' (routingKey: '${routingKey}')`,
-      error,
-    );
+    console.error(`Failed to publish message to '${exchangeName}'`, error);
     throw error;
   }
 }
@@ -60,8 +56,8 @@ async function consume(exchangeName, queue, routingKey, callback) {
       if (!msg) return;
       try {
         const message = JSON.parse(msg.content.toString());
-        console.log(`Message received on queue '${queue}':`, message);
-        await callback(message);
+        const rKey = msg.fields.routingKey;
+        await callback(message, rKey);
         channel.ack(msg);
       } catch (err) {
         console.error(`Error processing message from queue '${queue}':`, err);
@@ -76,7 +72,6 @@ async function consume(exchangeName, queue, routingKey, callback) {
 
 async function closeConnection() {
   if (connection) {
-    console.log("Closing RabbitMQ connection...");
     await connection.close();
   }
 }

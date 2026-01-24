@@ -105,6 +105,7 @@ services:
       - ADOPTION_REJECTION_QUEUE=adoption_rejection_queue
       - ADOPTION_PAYMENT_QUEUE=adoption_payment_queue
       - ADOPTION_COMMAND_QUEUE=adoption_command_queue
+      - ADOPTION_PET_VALIDATION_QUEUE=adoption_pet_validation_queue
     volumes:
       - ./adoption-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]

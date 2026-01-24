@@ -30,11 +30,11 @@ exports.getPetDetail = async (req, res) => {
   }
 };
 
-// Create pet (with images already handled via multer)
 exports.createPet = async (req, res) => {
   try {
     const petData = {
       ...req.body,
+      businessId: req.user.id,
       photos: req.files?.map((file) => file.path) || [],
     };
     const pet = await petService.createPetDirect(petData);
@@ -44,7 +44,7 @@ exports.createPet = async (req, res) => {
   }
 };
 
-// Update pet
+
 exports.updatePet = async (req, res) => {
   try {
     const petData = {
@@ -58,7 +58,7 @@ exports.updatePet = async (req, res) => {
   }
 };
 
-// Delete pet
+
 exports.deletePet = async (req, res) => {
   try {
     await petService.deletePetDirect(req.params.id);

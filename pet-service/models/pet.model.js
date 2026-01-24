@@ -41,6 +41,15 @@ const petSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isBooked: {
+      type: Boolean,
+      default: false,
+    },
+    adoptedBy: {
+      type: String,
+      default: null,
+    },
+    adoptedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

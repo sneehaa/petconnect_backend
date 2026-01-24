@@ -60,8 +60,9 @@ async function consume(exchangeName, queue, routingKey, callback) {
       if (!msg) return;
       try {
         const message = JSON.parse(msg.content.toString());
+        const rKey = msg.fields.routingKey;
         console.log(`Message received on queue '${queue}':`, message);
-        await callback(message);
+        await callback(message, rKey);
         channel.ack(msg);
       } catch (err) {
         console.error(`Error processing message from queue '${queue}':`, err);
