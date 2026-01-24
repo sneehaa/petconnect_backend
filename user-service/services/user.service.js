@@ -1,6 +1,5 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
 const userRepo = require("../repositories/user.repository");
 const otpRepo = require("../repositories/otp.repository");
 const { generateOTP } = require("../utils/otp.util");
@@ -15,40 +14,53 @@ class UserService {
     const otp = generateOTP();
 
     await otpRepo.create({ userId: user._id, email, otp, isUsed: false });
-    await redisClient.setEx(`otp:${email}`, 600, otp);
+    await redisClient.setEx(`otp:${email}`, 600, otp.toString());
 
-    await sendMail(email, "OTP Verification", `Your OTP is: ${otp}`);
+    await sendMail(email, "Your Verification Code", otp);
   }
 
   async resendOTP(email) {
-    const record = await otpRepo.findByEmail(email);
-    if (!record) throw new Error("OTP not found");
+    const user = await userRepo.findByEmail(email);
+    if (!user) throw new Error("User not found");
 
     const otp = generateOTP();
-    record.otp = otp;
-    record.isUsed = false;
-    await record.save();
 
-    // Update Redis
-    await redisClient.setEx(`otp:${email}`, 600, otp);
+    await otpRepo.deleteByEmail(email);
+    await otpRepo.create({ userId: user._id, email, otp, isUsed: false });
+    await redisClient.setEx(`otp:${email}`, 600, otp.toString());
 
-    await sendMail(email, "OTP Verification", `Your OTP is: ${otp}`);
+    await sendMail(email, "Your Verification Code", otp);
   }
 
   async verifyOTP(email, otp) {
-    // Check Redis first
     const cachedOtp = await redisClient.get(`otp:${email}`);
-    if (!cachedOtp || cachedOtp !== otp) {
+
+    if (!cachedOtp || cachedOtp !== otp.toString()) {
       throw new Error("Invalid or expired OTP");
     }
-    const record = await otpRepo.findValidOtp(otp);
-    if (record) {
-      record.isUsed = true;
-      await record.save();
+
+    await redisClient.del(`otp:${email}`);
+    await otpRepo.deleteByEmail(email);
+
+    return true;
+  }
+
+  async verifyRegistration(email, otp) {
+    const cachedOtp = await redisClient.get(`otp:${email}`);
+    if (!cachedOtp || cachedOtp !== otp.toString()) {
+      throw new Error("Invalid or expired OTP");
     }
 
-    // Delete OTP from Redis
+    const user = await userRepo.findByEmail(email);
+    if (!user) throw new Error("User not found");
+
+    user.isVerified = true;
+    await user.save();
+
     await redisClient.del(`otp:${email}`);
+    await otpRepo.deleteByEmail(email);
+
+    return { message: "Account verified successfully" };
   }
 
   async updatePassword(otp, newPassword) {
@@ -66,15 +78,31 @@ class UserService {
     const exists = await userRepo.findByEmail(data.email);
     if (exists) throw new Error("Email already exists");
 
+    const usernameExists = await userRepo.findByUsername(data.username);
+    if (usernameExists) throw new Error("Username already taken");
+
     data.password = await bcrypt.hash(data.password, 10);
     data.role = data.isAdmin ? "Admin" : "User";
+    data.isVerified = false;
 
-    return userRepo.create(data);
+    const newUser = await userRepo.create(data);
+
+    try {
+      await this.sendOTP(data.email);
+    } catch (err) {
+      console.error("Mail service error during registration");
+    }
+
+    return newUser;
   }
 
   async login(email, password) {
     const user = await userRepo.findByEmail(email);
     if (!user) throw new Error("User not found");
+
+    if (!user.isVerified) {
+      throw new Error("Please verify your email before logging in");
+    }
 
     const matched = await bcrypt.compare(password, user.password);
     if (!matched) throw new Error("Invalid credentials");

@@ -1,20 +1,14 @@
 const notificationService = require("../service/notification.service");
-
-exports.sendEmail = async (req, res) => {
-  try {
-    const { to, subject, text } = req.body;
-    const result = await notificationService.sendEmail(to, subject, text);
-    res.json({ success: true, ...result });
-  } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
-  }
-};
+const notificationRepo = require("../repositories/notification.repository");
 
 exports.sendAdoptionApproved = async (req, res) => {
   try {
-    const { userEmail, petName } = req.body;
-    const result = await notificationService.notifyAdoptionApproved(userEmail, petName);
-    res.json({ success: true, ...result });
+    const { userId, petName } = req.body;
+    const result = await notificationService.notifyAdoptionApproved(
+      userId,
+      petName,
+    );
+    res.json({ success: true, notification: result });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
@@ -22,9 +16,13 @@ exports.sendAdoptionApproved = async (req, res) => {
 
 exports.sendAdoptionRejected = async (req, res) => {
   try {
-    const { userEmail, petName, reason } = req.body;
-    const result = await notificationService.notifyAdoptionRejected(userEmail, petName, reason);
-    res.json({ success: true, ...result });
+    const { userId, petName, reason } = req.body;
+    const result = await notificationService.notifyAdoptionRejected(
+      userId,
+      petName,
+      reason,
+    );
+    res.json({ success: true, notification: result });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }

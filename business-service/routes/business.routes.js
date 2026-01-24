@@ -19,6 +19,10 @@ router.post(
   businessController.registerBusiness,
 );
 
+router.post("/verify-email", businessController.verifyBusinessEmail);
+
+router.post("/resend-otp", businessController.sendOTP);
+
 router.post("/login", businessController.loginBusiness);
 
 router.get("/me", authGuardBusiness, businessController.getMyBusiness);

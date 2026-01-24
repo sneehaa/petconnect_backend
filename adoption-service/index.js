@@ -1,52 +1,38 @@
-// importing
-const express = require('express');
-const dotenv = require('dotenv');
-const connectDB = require('./database/db');
-const cors = require('cors');
-const cloudinary = require('cloudinary').v2;
-
+const express = require("express");
+const dotenv = require("dotenv");
+const connectDB = require("./database/db");
+const cors = require("cors");
+const rabbitmq = require("./utils/rabbitMQ");
+const { setupAdoptionListeners } = require("./events/adoption.events");
 
 const app = express();
-
-
 dotenv.config();
 
-
-cloudinary.config({ 
-  cloud_name: process.env.CLOUD_NAME, 
-  api_key: process.env.CLOUDINARY_API_KEY, 
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// cors config to accept request from frontend
 const corsOptions = {
-    origin: true,
-    credentials: true,
-    optionSuccessStatus: 200
+  origin: true,
+  credentials: true,
+  optionSuccessStatus: 200,
 };
-app.use(cors(corsOptions))
-
+app.use(cors(corsOptions));
 
 connectDB();
 
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api/adoption", require("./routes/adoption.routes"));
 
-app.get("/test", (req,res) => {
-    res.status(200).send("Hello");
-})
+rabbitmq
+  .connect()
+  .then(() => {
+    setupAdoptionListeners();
+    console.log("RabbitMQ Connected & Listeners Active");
+  })
+  .catch((err) => console.error("RabbitMQ Connection Failed", err));
 
+const PORT = process.env.PORT || 5003;
+app.listen(PORT, () => {
+  console.log(`Adoption Service running on port ${PORT}`);
+});
 
-app.use('/api/adoption', require('./routes/adoption.routes'))
-
-
-const PORT = process.env.PORT;
-
-app.listen(PORT, ()=>{
-    console.log(`Server is running on port ${PORT}`)
-})
-
-// exporting app
 module.exports = app;

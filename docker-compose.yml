@@ -5,6 +5,16 @@ services:
     ports:
       - "6379:6379"
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
   user-service:
     build: ./user-service
     container_name: user-service
@@ -14,9 +24,14 @@ services:
       - PORT=5500
       - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
       - JWT_SECRET=SECRET
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
     volumes:
       - ./user-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      - redis
+      - rabbitmq
 
   business-service:
     build: ./business-service
@@ -27,9 +42,12 @@ services:
       - PORT=5501
       - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
       - JWT_SECRET=SECRET
+      - RABBITMQ_URL=amqp://rabbitmq:5672
     volumes:
       - ./business-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      - rabbitmq
 
   pet-service:
     build: ./pet-service
@@ -45,6 +63,15 @@ services:
       - CLOUDINARY_API_SECRET=Ffqi4kyPjcyZH7pKuvkOmjmwYWw
       - USER_SERVICE_URL=http://user-service:5500/api/user
       - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - PET_EXCHANGE=pet_events_exchange
+      - BUSINESS_EXCHANGE=business_events_exchange
+      - ADOPTION_EXCHANGE=adoption_events_exchange
+      - PET_BUSINESS_QUEUE=pet_business_queue
+      - PET_CREATION_QUEUE=pet_creation_queue
+      - PET_UPDATE_QUEUE=pet_update_queue
+      - PET_ADOPTION_QUEUE=pet_adoption_queue
+      - PET_BUSINESS_VALIDATION_QUEUE=pet_business_validation_queue
     volumes:
       - ./pet-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
@@ -52,65 +79,7 @@ services:
       - redis
       - user-service
       - business-service
-
-  payment-service:
-    build: ./payment-service
-    container_name: payment-service
-    ports:
-      - "5504:5504"
-    environment:
-      - PORT=5504
-      - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
-      - EMAIL_USER=adhikarisneha0001@gmail.com
-      - EMAIL_PASS=koqycslmnunmthqn
-      - JWT_SECRET=SECRET
-      - CLOUDINARY_CLOUD_NAME=dnsijcpng
-      - CLOUDINARY_API_KEY=764798892284885
-      - CLOUDINARY_API_SECRET=Ffqi4kyPjcyZH7pKuvkOmjmwYWw
-      - KHALTI_API_URL=https://test-pay.khalti.com/api/v2/epayment/initiate
-      - KHALTI_SECRET_KEY=ec21bc3219dd48a5a585ab687ff408bd
-      - KHALTI_LOOKUP_URL=https://test-pay.khalti.com/api/v2/epayment/lookup
-      - REDIS_URL=redis://redis:6379
-      - USER_SERVICE_URL=http://user-service:5500/api/user
-      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
-      - PET_SERVICE_URL=http://pet-service:5502/api/pets
-      - ADOPTION_SERVICE_URL=http://adoption-service:5503/api/adoption
-      - NOTIFICATION_SERVICE_URL=http://notification-service:5505/api/notifications
-    volumes:
-      - ./payment-service:/app
-    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
-    depends_on:
-      - redis
-      - user-service
-      - business-service
-      - pet-service
-
-  notification-service:
-    build: ./notification-service
-    container_name: notification-service
-    ports:
-      - "5505:5505"
-    environment:
-      - PORT=5505
-      - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
-      - EMAIL_USER=adhikarisneha0001@gmail.com
-      - EMAIL_PASS=koqycslmnunmthqn
-      - JWT_SECRET=SECRET
-      - CLOUDINARY_CLOUD_NAME=dnsijcpng
-      - CLOUDINARY_API_KEY=764798892284885
-      - CLOUDINARY_API_SECRET=Ffqi4kyPjcyZH7pKuvkOmjmwYWw
-      - USER_SERVICE_URL=http://user-service:5500/api/user
-      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
-      - PET_SERVICE_URL=http://pet-service:5502/api/pets
-      - PAYMENT_SERVICE_URL=http://payment-service:5504/api/payment
-    volumes:
-      - ./notification-service:/app
-    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
-    depends_on:
-      - user-service
-      - business-service
-      - pet-service
-      - payment-service
+      - rabbitmq
 
   adoption-service:
     build: ./adoption-service
@@ -126,7 +95,16 @@ services:
       - USER_SERVICE_URL=http://user-service:5500/api/user
       - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
       - PET_SERVICE_URL=http://pet-service:5502/api/pets
-      - NOTIFICATION_SERVICE_URL=http://notification-service:5505/api/notifications
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5505/api/notification
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - ADOPTION_EXCHANGE=adoption_events_exchange
+      - PAYMENT_EXCHANGE=payment_events_exchange
+      - BUSINESS_EXCHANGE=business_events_exchange
+      - PET_EXCHANGE=pet_events_exchange
+      - ADOPTION_APPROVAL_QUEUE=adoption_approval_queue
+      - ADOPTION_REJECTION_QUEUE=adoption_rejection_queue
+      - ADOPTION_PAYMENT_QUEUE=adoption_payment_queue
+      - ADOPTION_COMMAND_QUEUE=adoption_command_queue
     volumes:
       - ./adoption-service:/app
     command: ["npx", "nodemon", "--legacy-watch", "index.js"]
@@ -135,3 +113,68 @@ services:
       - business-service
       - pet-service
       - notification-service
+      - rabbitmq
+
+  payment-service:
+    build: ./payment-service
+    container_name: payment-service
+    ports:
+      - "5504:5504"
+    environment:
+      - PORT=5504
+      - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
+      - EMAIL_USER=adhikarisneha0001@gmail.com
+      - EMAIL_PASS=koqycslmnunmthqn
+      - JWT_SECRET=SECRET
+      - CLOUDINARY_CLOUD_NAME=dnsijcpng
+      - CLOUDINARY_API_KEY=764798892284885
+      - CLOUDINARY_API_SECRET=Ffqi4kyPjcyZH7pKuvkOmjmwYWw
+      - REDIS_URL=redis://redis:6379
+      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
+      - PET_SERVICE_URL=http://pet-service:5502/api/pets
+      - ADOPTION_SERVICE_URL=http://adoption-service:5503/api/adoption
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5505/api/notification
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - PAYMENT_EXCHANGE=payment_events_exchange
+    volumes:
+      - ./payment-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      - redis
+      - user-service
+      - business-service
+      - pet-service
+      - rabbitmq
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports:
+      - "5505:5505"
+    environment:
+      - PORT=5505
+      - DB_URL=mongodb+srv://petConnet:Password%40123@cluster0.xe94bts.mongodb.net/?appName=Cluster0
+      - EMAIL_USER=adhikarisneha0001@gmail.com
+      - EMAIL_PASS=koqycslmnunmthqn
+      - JWT_SECRET=SECRET
+      - USER_SERVICE_URL=http://user-service:5500/api/user
+      - BUSINESS_SERVICE_URL=http://business-service:5501/api/business
+      - PET_SERVICE_URL=http://pet-service:5502/api/pets
+      - PAYMENT_SERVICE_URL=http://payment-service:5504/api/payment
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - PET_EXCHANGE=pet_events_exchange
+      - ADOPTION_EXCHANGE=adoption_events_exchange
+      - PAYMENT_EXCHANGE=payment_events_exchange
+      - NOTIFICATION_ADOPTION_QUEUE=notification_adoption_queue
+      - NOTIFICATION_PAYMENT_QUEUE=notification_payment_queue
+      - NOTIFICATION_PET_QUEUE=notification_pet_queue
+    volumes:
+      - ./notification-service:/app
+    command: ["npx", "nodemon", "--legacy-watch", "index.js"]
+    depends_on:
+      - user-service
+      - business-service
+      - pet-service
+      - payment-service
+      - rabbitmq

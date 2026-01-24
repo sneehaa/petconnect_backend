@@ -2,20 +2,24 @@ const businessService = require("../services/business.service");
 
 exports.registerBusiness = async (req, res) => {
   try {
-    // Prepare data with profile image if uploaded
-    const registrationData = {
-      ...req.body,
-      profileImageFile: req.file // Pass the file object to service
-    };
-    
-    const { business, tempToken } = await businessService.register(registrationData);
-
+    const data = { ...req.body, profileImageFile: req.file };
+    const result = await businessService.register(data);
     res.status(201).json({
       success: true,
-      message: "Business Registered Successfully",
-      business,
-      tempToken,
+      message:
+        "Business registered. Please verify your email using the OTP sent.",
+      ...result,
     });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+exports.verifyBusinessEmail = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const result = await businessService.verifyEmail(email, otp);
+    res.json({ success: true, message: result.message });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
@@ -23,26 +27,20 @@ exports.registerBusiness = async (req, res) => {
 
 exports.loginBusiness = async (req, res) => {
   try {
-    const data = await businessService.login(req.body.email, req.body.password);
+    const { email, password } = req.body;
+    const data = await businessService.login(email, password);
     res.json({ success: true, ...data });
   } catch (e) {
     res.status(401).json({ success: false, message: e.message });
   }
 };
 
-exports.getBusinessDetails = async (req, res) => {
-  try {
-    const business = await businessService.getById(req.params.businessId);
-    res.status(200).json({ success: true, business });
-  } catch (e) {
-    res.status(404).json({ success: false, message: e.message });
-  }
-};
+// --- Missing functions added below to stop the crash ---
 
-exports.getMyBusiness = async (req, res) => {
+exports.sendOTP = async (req, res) => {
   try {
-    const business = await businessService.getById(req.business.id);
-    res.json({ success: true, business });
+    await businessService.sendOTP(req.body.email);
+    res.json({ success: true, message: "OTP sent" });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
@@ -50,8 +48,11 @@ exports.getMyBusiness = async (req, res) => {
 
 exports.createProfile = async (req, res) => {
   try {
-    const business = await businessService.createProfile(req.business.id, req.body);
-    res.status(200).json({ success: true, business });
+    const profile = await businessService.createProfile(
+      req.business.id,
+      req.body,
+    );
+    res.json({ success: true, profile });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
@@ -59,18 +60,11 @@ exports.createProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const business = await businessService.updateProfile(req.business.id, req.body);
-    res.status(200).json({ success: true, business });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-};
-
-exports.uploadDocuments = async (req, res) => {
-  try {
-    const files = req.file ? [req.file] : [];
-    await businessService.uploadDocuments(req.business.id, files);
-    res.json({ success: true, message: "Documents uploaded successfully" });
+    const profile = await businessService.updateProfile(
+      req.business.id,
+      req.body,
+    );
+    res.json({ success: true, profile });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
@@ -78,24 +72,55 @@ exports.uploadDocuments = async (req, res) => {
 
 exports.uploadProfileImage = async (req, res) => {
   try {
-    if (!req.file) {
-      throw new Error("Profile image is required");
-    }
-
-    const business = await businessService.uploadProfileImage(
+    const imageUrl = await businessService.updateProfileImage(
       req.business.id,
-      req.file
+      req.file,
     );
-
-    res.status(200).json({
-      success: true,
-      message: "Profile image uploaded successfully",
-      business,
-    });
+    res.json({ success: true, imageUrl });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
 };
+
+exports.uploadDocuments = async (req, res) => {
+  try {
+    // Handle tempAuthGuard (req.user) vs authGuardBusiness (req.business)
+    const id = req.business ? req.business.id : req.user.id;
+    const result = await businessService.uploadDocs(id, req.file);
+    res.json({ success: true, result });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+exports.getApprovedBusinesses = async (req, res) => {
+  try {
+    const businesses = await businessService.getApproved();
+    res.json({ success: true, businesses });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+exports.getBusinessDetails = async (req, res) => {
+  try {
+    const business = await businessService.getById(req.params.businessId);
+    res.json({ success: true, business });
+  } catch (e) {
+    res.status(404).json({ success: false, message: e.message });
+  }
+};
+
+exports.deleteBusiness = async (req, res) => {
+  try {
+    await businessService.delete(req.params.businessId);
+    res.json({ success: true, message: "Deleted" });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+// --- End of missing functions ---
 
 exports.approveBusiness = async (req, res) => {
   try {
@@ -115,35 +140,13 @@ exports.rejectBusiness = async (req, res) => {
   }
 };
 
-exports.getApprovedBusinesses = async (req, res) => {
-  try {
-    const businesses = await businessService.getApprovedBusinesses();
-    res.json({ success: true, businesses });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-};
-
-exports.deleteBusiness = async (req, res) => {
-  try {
-    await businessService.deleteBusiness(req.params.businessId);
-    res.json({ success: true, message: "Business deleted successfully" });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-};
-
 exports.approveAdoption = async (req, res) => {
   try {
-    const { applicationId } = req.params;
-
-    const result = await businessService.approveAdoption(req.business.id, applicationId);
-
-    res.status(200).json({
-      success: true,
-      message: "Adoption approved successfully",
-      application: result
-    });
+    const result = await businessService.approveAdoption(
+      req.business.id,
+      req.params.applicationId,
+    );
+    res.json({ success: true, ...result });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
@@ -151,34 +154,25 @@ exports.approveAdoption = async (req, res) => {
 
 exports.rejectAdoption = async (req, res) => {
   try {
-    const { applicationId } = req.params;
-    const { reason } = req.body;
-
-    const result = await businessService.rejectAdoption(req.business.id, applicationId, reason);
-
-    res.status(200).json({
-      success: true,
-      message: "Adoption rejected successfully",
-      application: result
-    });
+    const result = await businessService.rejectAdoption(
+      req.business.id,
+      req.params.applicationId,
+      req.body.reason,
+    );
+    res.json({ success: true, ...result });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
 };
 
-
 exports.resetPassword = async (req, res) => {
   try {
-    const { oldPassword, newPassword } = req.body;
-
-    if (!oldPassword || !newPassword) {
-      return res.status(400).json({ success: false, message: "Old password and new password are required" });
-    }
-
-    // Call service to reset password
-    await businessService.resetPassword(req.business.id, oldPassword, newPassword);
-
-    res.status(200).json({ success: true, message: "Password reset successfully" });
+    await businessService.resetPassword(
+      req.business.id,
+      req.body.oldPassword,
+      req.body.newPassword,
+    );
+    res.json({ success: true, message: "Password reset successfully" });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
@@ -186,15 +180,18 @@ exports.resetPassword = async (req, res) => {
 
 exports.getBusinessCount = async (req, res) => {
   try {
-    const totalBusinesses = await businessService.getBusinessCount();
-    res.status(200).json({
-      success: true,
-      stats: {
-        totalBusinesses,
-      },
-    });
+    const count = await businessService.getBusinessCount();
+    res.json({ success: true, count });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
 };
 
+exports.getMyBusiness = async (req, res) => {
+  try {
+    const business = await businessService.getById(req.business.id);
+    res.json({ success: true, business });
+  } catch (e) {
+    res.status(404).json({ success: false, message: e.message });
+  }
+};

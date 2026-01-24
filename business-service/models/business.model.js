@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
 const BusinessSchema = new mongoose.Schema(
   {
@@ -23,6 +24,10 @@ const BusinessSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
     },
     adoptionPolicy: {
       type: String,

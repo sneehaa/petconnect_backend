@@ -1,69 +1,39 @@
-const nodemailer = require("nodemailer");
 const notificationRepo = require("../repositories/notification.repository");
 
 class NotificationService {
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
+  async createInAppNotification(userId, title, message, type) {
+    return await notificationRepo.create({
+      userId,
+      type: type,
+      subject: title,
+      message: message,
+      status: "unread",
+      createdAt: new Date(),
     });
   }
 
-  async sendEmail(to, subject, text) {
-    const notification = await notificationRepo.create({
-      type: "email",
-      subject,
-      message: text,
-      status: "pending"
-    });
-
-    try {
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to,
-        subject,
-        text
-      };
-
-      await this.transporter.sendMail(mailOptions);
-      
-      await notificationRepo.updateStatus(notification._id, "sent");
-      return { success: true, notificationId: notification._id };
-    } catch (error) {
-      await notificationRepo.updateStatus(notification._id, "failed");
-      throw new Error(`Email failed: ${error.message}`);
-    }
+  async notifyAdoptionApproved(userId, petName) {
+    const title = "Adoption Approved! 🎉";
+    const message = `Great news! Your adoption request for ${petName} has been approved. Please proceed to payment to finalize the process.`;
+    return this.createInAppNotification(userId, title, message, "ADOPTION");
   }
 
-  async notifyAdoptionApproved(userEmail, petName) {
-    const subject = "Adoption Approved!";
-    const text = `Your adoption request for ${petName} has been approved. Please proceed to payment.`;
-    
-    return this.sendEmail(userEmail, subject, text);
+  async notifyAdoptionRejected(userId, petName, reason) {
+    const title = "Adoption Update";
+    const message = `Your request for ${petName} was not approved this time. Reason: ${reason}`;
+    return this.createInAppNotification(userId, title, message, "ADOPTION");
   }
 
-  async notifyAdoptionRejected(userEmail, petName, reason) {
-    const subject = "Adoption Status Update";
-    const text = `Your adoption request for ${petName} was rejected. Reason: ${reason}`;
-    
-    return this.sendEmail(userEmail, subject, text);
+  async notifyPaymentSuccess(userId, amount) {
+    const title = "Payment Successful";
+    const message = `We've received your payment of Rs. ${amount}. Thank you for choosing adoption!`;
+    return this.createInAppNotification(userId, title, message, "PAYMENT");
   }
 
-  async notifyPaymentSuccess(userEmail, amount) {
-    const subject = "Payment Successful!";
-    const text = `Your payment of Rs. ${amount} was successful.`;
-    
-    return this.sendEmail(userEmail, subject, text);
-  }
-
-  async notifyBusinessPayment(businessEmail, amount, petName) {
-    const subject = "New Payment Received";
-    const text = `You received Rs. ${amount} for ${petName} adoption.`;
-    
-    return this.sendEmail(businessEmail, subject, text);
+  async notifyBusinessPayment(businessId, amount, petName) {
+    const title = "New Adoption Payment";
+    const message = `You have received a payment of Rs. ${amount} for ${petName}.`;
+    return this.createInAppNotification(businessId, title, message, "PAYMENT");
   }
 }
 

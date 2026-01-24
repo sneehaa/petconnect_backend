@@ -1,55 +1,22 @@
-// importing
-const express = require('express');
-const dotenv = require('dotenv');
-const connectDB = require('./database/db');
-const cors = require('cors');
-const cloudinary = require('cloudinary').v2;
+const express = require("express");
+const dotenv = require("dotenv");
+const rabbitmq = require("./utils/rabbitMQ");
+const { setupEventListeners } = require("./events/notification.events");
+const connectDB = require("./database/db");
 
-// dotenv config
-dotenv.config();
-
-// Making express app
 const app = express();
-
-// cloudinary config
-cloudinary.config({ 
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
-  api_key: process.env.CLOUDINARY_API_KEY, 
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// cors config to accept request from frontend
-const corsOptions = {
-    origin: true,
-    credentials: true,
-    optionSuccessStatus: 200
-};
-app.use(cors(corsOptions));
-
-// mongodb connection
+dotenv.config();
 connectDB();
 
-// Accepting json data
 app.use(express.json());
+app.use("/api/notifications", require("./routes/notification.routes"));
 
-// Accepting multipart/form-data
-app.use(express.urlencoded({ extended: true }));
+rabbitmq
+  .connect()
+  .then(() => {
+    setupEventListeners();
+    console.log("Notification Service Listeners Active");
+  })
+  .catch((err) => console.error(err));
 
-// creating test route
-app.get("/test", (req,res) => {
-    res.status(200).send("Hello");
-});
-
-// creating user routes
-app.use('/api/notification', require('./routes/notification.routes'));
-
-// defining port with fallback
-const PORT = process.env.PORT
-
-// run the server
-app.listen(PORT, ()=>{
-    console.log(`Server is running on port ${PORT}`)
-});
-
-// exporting app
-module.exports = app;
+app.listen(process.env.PORT, () => console.log("Notification Service Running"));

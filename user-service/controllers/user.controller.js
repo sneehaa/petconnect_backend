@@ -1,18 +1,34 @@
 const userService = require("../services/user.service");
 
-exports.sendOTP = async (req, res) => {
+exports.register = async (req, res) => {
   try {
-    await userService.sendOTP(req.body.email);
-    res.json({ success: true, message: "OTP sent successfully" });
+    await userService.register(req.body);
+    res.status(201).json({
+      success: true,
+      message:
+        "Registration initiated. OTP has been sent to your email. Please verify to complete signup.",
+    });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
 };
 
-exports.register = async (req, res) => {
+exports.verifyEmail = async (req, res) => {
   try {
-    await userService.register(req.body);
-    res.status(201).json({ success: true, message: "Registered successfully" });
+    const { email, otp } = req.body;
+    if (!email || !otp) throw new Error("Email and OTP are required");
+
+    const result = await userService.verifyRegistration(email, otp);
+    res.json({ success: true, message: result.message });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+exports.sendOTP = async (req, res) => {
+  try {
+    await userService.sendOTP(req.body.email);
+    res.json({ success: true, message: "OTP sent successfully" });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
@@ -40,12 +56,12 @@ exports.getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const users = await userService.getAllUsers(+page, +limit);
-    const totalUsers = await userService.getUserCount(); 
+    const totalUsers = await userService.getUserCount();
 
     res.json({
       success: true,
       users,
-      total: totalUsers, 
+      total: totalUsers,
       page: +page,
       limit: +limit,
     });

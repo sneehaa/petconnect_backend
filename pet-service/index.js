@@ -1,14 +1,13 @@
-// index.js (or app.js)
-
 const express = require("express");
 const dotenv = require("dotenv");
 const connectDB = require("./database/db");
 const cors = require("cors");
 const path = require("path");
 const cloudinary = require("cloudinary").v2;
+const rabbitmq = require("./utils/rabbitMQ");
+const { setupEventListeners } = require("./events/pets.events");
 
 const app = express();
-
 dotenv.config();
 
 cloudinary.config({
@@ -17,7 +16,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// cors config to accept request from frontend
 const corsOptions = {
   origin: true,
   credentials: true,
@@ -28,23 +26,20 @@ app.use(cors(corsOptions));
 connectDB();
 
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
-
-app.get("/test", (req, res) => {
-  res.status(200).send("Hello");
-});
-
-// Serve uploads folder
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 app.use("/api/pets", require("./routes/pet.routes"));
 
-const PORT = process.env.PORT;
+rabbitmq
+  .connect()
+  .then(() => {
+    setupEventListeners();
+  })
+  .catch((err) => console.error(err));
 
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
-// exporting app
 module.exports = app;

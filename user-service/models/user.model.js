@@ -36,10 +36,14 @@ const UserSchema = new mongoose.Schema(
       enum: ["User", "Admin"],
       default: "User",
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 module.exports = mongoose.model("User", UserSchema);
