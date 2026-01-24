@@ -34,11 +34,14 @@ class AdoptionRepository {
       adoptionId,
       {
         status: "completed",
-        "payment.paymentId": paymentId,
+        isPaid: true,
+        paymentId: paymentId,
+        paidAt: new Date(),
         "payment.isPaid": true,
-        "payment.paidAt": new Date()
+        "payment.paymentId": paymentId,
+        "payment.paidAt": new Date(),
       },
-      { new: true }
+      { new: true },
     );
   }
 }

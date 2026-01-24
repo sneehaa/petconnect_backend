@@ -88,12 +88,12 @@ exports.getAdoptionById = async (req, res) => {
 
 exports.markAdoptionPaid = async (req, res) => {
   try {
-    const { paymentId, amount } = req.body;
-    const result = await adoptionService.markAdoptionPaid(
-      req.params.adoptionId,
+    const { adoptionId } = req.params;
+    const { petId } = req.body;
+    const result = await adoptionService.finalizeAdoptionDirect(
+      adoptionId,
+      petId,
       req.user.id,
-      paymentId,
-      amount,
     );
     res.json({ success: true, adoption: result });
   } catch (err) {

@@ -1,32 +1,28 @@
 const Pet = require("../models/pet.model");
 
 class PetRepository {
-  create(data) {
-    return Pet.create(data);
+  async create(data) {
+    return await Pet.create(data);
   }
 
-  findById(id) {
-    return Pet.findById(id);
+  async update(id, data) {
+    return await Pet.findByIdAndUpdate(id, data, { new: true });
   }
 
-  findByBusiness(businessId) {
-    return Pet.find({ businessId });
+  async delete(id) {
+    return await Pet.findByIdAndDelete(id);
   }
 
-  update(id, data) {
-    return Pet.findByIdAndUpdate(id, data, { new: true });
+  async findById(id) {
+    return await Pet.findById(id);
   }
 
-  delete(id) {
-    return Pet.findByIdAndDelete(id);
+  async getAll() {
+    return await Pet.find({ status: "available" });
   }
 
-  getAll() {
-    return Pet.find();
-  }
-
-  deleteByBusiness(businessId) {
-    return Pet.deleteMany({ businessId });
+  async findByBusiness(businessId) {
+    return await Pet.find({ businessId });
   }
 }
 

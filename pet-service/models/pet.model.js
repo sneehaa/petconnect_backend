@@ -37,19 +37,19 @@ const petSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    available: {
-      type: Boolean,
-      default: true,
-    },
-    isBooked: {
-      type: Boolean,
-      default: false,
+    status: {
+      type: String,
+      enum: ["available", "booked", "adopted"],
+      default: "available",
     },
     adoptedBy: {
       type: String,
       default: null,
     },
-    adoptedAt: { type: Date, default: null },
+    adoptedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );

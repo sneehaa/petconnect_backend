@@ -54,20 +54,20 @@ exports.setupAdoptionListeners = () => {
   rabbitmq.consume(
     process.env.PAYMENT_EXCHANGE,
     process.env.ADOPTION_PAYMENT_QUEUE,
-    "payment.success",
+    "payment.completed",
     async (data) => {
       try {
         console.log(
-          `Payment success received for adoption: ${data.adoptionId}`,
+          `[Adoption Listener] Finalizing for Adoption: ${data.adoptionId}`,
         );
-        await adoptionService.markAdoptionPaid(
+
+        await adoptionService.finalizeAdoptionDirect(
           data.adoptionId,
+          data.petId,
           data.userId,
-          data.paymentId,
-          data.amount,
         );
       } catch (err) {
-        console.error("Error marking adoption as paid:", err.message);
+        console.error("[Adoption Listener] Finalization error:", err.message);
       }
     },
   );

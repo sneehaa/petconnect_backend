@@ -7,21 +7,18 @@ const pendingPetValidations = new Map();
 class AdoptionService {
   async applyAdoption(userId, petId, data) {
     const petInfo = await this.validatePetAndGetBusiness(petId);
-    if (!petInfo.petDetails.available || petInfo.petDetails.isBooked) {
-      throw new Error(
-        "This pet is currently unavailable or booked by another user",
-      );
+    if (petInfo.petDetails.status !== "available") {
+      throw new Error("Pet is not available");
     }
     const existing = await adoptionRepo.findUserPetAdoption(userId, petId);
-    if (existing) throw new Error("Already applied for this pet");
-    const adoption = await adoptionRepo.create({
+    if (existing) throw new Error("Already applied");
+    return await adoptionRepo.create({
       petId,
       userId,
       businessId: petInfo.businessId,
       status: "pending",
       message: data.message || "",
     });
-    return adoption;
   }
 
   validatePetAndGetBusiness(petId) {
@@ -35,7 +32,7 @@ class AdoptionService {
       setTimeout(() => {
         if (pendingPetValidations.has(correlationId)) {
           pendingPetValidations.delete(correlationId);
-          reject(new Error("Pet validation timeout"));
+          reject(new Error("Timeout"));
         }
       }, 10000);
     });
@@ -46,14 +43,13 @@ class AdoptionService {
     if (!handler) return;
     pendingPetValidations.delete(correlationId);
     if (res.valid) handler.resolve(res);
-    else handler.reject(new Error(res.reason || "Invalid pet"));
+    else handler.reject(new Error(res.reason));
   }
 
   async approveAdoption(adoptionId, businessId) {
     const adoption = await adoptionRepo.findById(adoptionId);
-    if (!adoption) throw new Error("Adoption not found");
-    if (adoption.businessId.toString() !== businessId.toString())
-      throw new Error("Unauthorized");
+    if (!adoption || adoption.businessId.toString() !== businessId.toString())
+      throw new Error("Unauthorized or not found");
     const petInfo = await this.validatePetAndGetBusiness(adoption.petId);
     adoption.status = "payment_pending";
     await adoption.save();
@@ -61,62 +57,45 @@ class AdoptionService {
       adoptionId: adoption._id,
       userId: adoption.userId,
       petId: adoption.petId,
-      petName: petInfo.petDetails.name,
       businessId: adoption.businessId,
       adoptionFee: petInfo.petDetails.amount,
-      status: "approved",
     });
     return adoption;
   }
 
+  async finalizeAdoptionDirect(adoptionId, petId, userId, paymentId) {
+    const updatedAdoption = await adoptionRepo.markPaid(adoptionId, paymentId);
+
+    if (!updatedAdoption) {
+      throw new Error("Adoption not found during finalization");
+    }
+    await rabbitmq.publish(
+      process.env.ADOPTION_EXCHANGE,
+      "adoption.completed",
+      {
+        adoptionId: updatedAdoption._id,
+        petId: petId || updatedAdoption.petId,
+        userId: userId || updatedAdoption.userId,
+        status: "completed",
+      },
+    );
+
+    return updatedAdoption;
+  }
+
   async rejectAdoption(adoptionId, businessId, reason) {
     const adoption = await adoptionRepo.findById(adoptionId);
-    if (!adoption) throw new Error("Adoption not found");
-    if (adoption.businessId.toString() !== businessId.toString())
+    if (!adoption || adoption.businessId.toString() !== businessId.toString())
       throw new Error("Unauthorized");
-    const petInfo = await this.validatePetAndGetBusiness(adoption.petId);
     adoption.status = "rejected";
     adoption.rejectionReason = reason;
     await adoption.save();
     await rabbitmq.publish(process.env.ADOPTION_EXCHANGE, "adoption.rejected", {
       adoptionId: adoption._id,
-      userId: adoption.userId,
       petId: adoption.petId,
-      petName: petInfo.petDetails.name,
-      reason: reason,
+      reason,
     });
     return adoption;
-  }
-
-  async markAdoptionPaid(adoptionId, userId, paymentId, amount) {
-    const adoption = await adoptionRepo.markPaid(adoptionId, paymentId);
-    await rabbitmq.publish(
-      process.env.ADOPTION_EXCHANGE,
-      "adoption.completed",
-      {
-        adoptionId: adoption._id,
-        userId: adoption.userId,
-        petId: adoption.petId,
-        status: "completed",
-      },
-    );
-    return adoption;
-  }
-
-  async getAdoptionStatus(userId, petId) {
-    return await adoptionRepo.findUserPetAdoption(userId, petId);
-  }
-
-  async getAdoptionHistory(userId) {
-    return await adoptionRepo.findByUser(userId);
-  }
-
-  async getAdoptionById(id) {
-    return await adoptionRepo.findById(id);
-  }
-
-  async getAdoptionsByPet(petId) {
-    return await adoptionRepo.findByPet(petId);
   }
 }
 
