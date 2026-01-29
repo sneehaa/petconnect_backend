@@ -45,6 +45,7 @@ app.get("/test", (req,res) => {
 // Serve uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api/pets/compatibility', require('./routes/compatibility.routes'));
 app.use('/api/pets', require('./routes/pet.routes'))
 app.use("/api/pets", countRoutes);
 

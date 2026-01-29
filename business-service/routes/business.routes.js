@@ -1,28 +1,22 @@
 const express = require("express");
 const router = express.Router();
 const businessController = require("../controllers/business.controller");
-const {
-  authGuardBusiness,
-  authGuardAdmin,
-} = require("../middleware/authGuard");
+const { authGuardBusiness, authGuardAdmin } = require("../middleware/authGuard");
 const tempAuthGuard = require("../middleware/tempauth");
 const uploadBusinessDoc = require("../multer/business.multer");
 
 // =====================
-// PUBLIC
+// PUBLIC ROUTES
 // =====================
 router.post("/register", businessController.registerBusiness);
 router.post("/login", businessController.loginBusiness);
-<<<<<<< HEAD
 router.get("/nearby", businessController.getNearbyBusinesses);
 router.post("/reset-password", authGuardBusiness, businessController.resetPassword);
-=======
-router.get("/", businessController.getApprovedBusinesses)
->>>>>>> 4fef8b60fd1a565ebb5ad287c89035cd1fd56a01
 router.get("/:businessId", businessController.getBusinessDetails);
+router.get("/", businessController.getApprovedBusinesses);
 
 // =====================
-// AUTHENTICATED BUSINESS
+// AUTHENTICATED BUSINESS ROUTES
 // =====================
 router.get("/me", authGuardBusiness, businessController.getMyBusiness);
 router.post("/profile", authGuardBusiness, businessController.createProfile);
@@ -50,7 +44,7 @@ router.put(
 );
 
 // =====================
-// ADMIN
+// ADMIN ROUTES
 // =====================
 router.put(
   "/admin/approve/:businessId",
@@ -75,6 +69,5 @@ router.delete(
   authGuardAdmin,
   businessController.deleteBusiness
 );
-
 
 module.exports = router;
