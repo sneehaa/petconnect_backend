@@ -41,7 +41,7 @@ app.get("/test", (req, res) => {
 });
 
 // creating user routes
-app.use("/api/user", require("./routes/user.routes"));
+app.use("/api/users", require("./routes/user.routes"));
 
 // defining port with fallback
 const PORT = process.env.PORT;
