@@ -9,7 +9,7 @@ dotenv.config();
 connectDB();
 
 app.use(express.json());
-app.use("/api/notifications", require("./routes/notification.routes"));
+app.use("/api/notification", require("./routes/notification.routes"));
 
 rabbitmq
   .connect()

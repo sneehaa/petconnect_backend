@@ -17,7 +17,7 @@ class NotificationRepository {
     return Notification.findByIdAndUpdate(
       id,
       { status, sentAt: status === "sent" ? new Date() : null },
-      { new: true }
+      { new: true },
     );
   }
 }

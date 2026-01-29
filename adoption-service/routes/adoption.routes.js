@@ -10,6 +10,7 @@ router.use(authGuard);
 router.post("/pets/:petId/adopt", adoptionController.applyAdoption);
 router.get("/pets/:petId/status", adoptionController.getAdoptionStatus);
 router.get("/history", adoptionController.getAdoptionHistory);
+router.get("/business/history", adoptionController.getBusinessAdoptions);
 router.get("/pets/:petId", adoptionController.getPetAdoptions);
 router.put("/:adoptionId/status", adoptionController.updateAdoptionStatus);
 router.get("/:adoptionId", adoptionController.getAdoptionById);

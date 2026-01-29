@@ -36,3 +36,20 @@ exports.getUserNotifications = async (req, res) => {
     res.status(500).json({ success: false, message: e.message });
   }
 };
+exports.getBusinessNotifications = async (req, res) => {
+  try {
+    if (!req.business || !req.business.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Business authentication required",
+      });
+    }
+
+    const notifications = await notificationRepo.findByBusinessId(
+      req.business.id,
+    );
+    res.json({ success: true, notifications });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};

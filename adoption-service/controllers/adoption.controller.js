@@ -9,7 +9,7 @@ exports.applyAdoption = async (req, res) => {
     );
     res.status(202).json({
       success: true,
-      message: "Adoption application is being processed",
+      message: "Adoption application submitted for review",
       adoption,
     });
   } catch (err) {
@@ -32,12 +32,12 @@ exports.updateAdoptionStatus = async (req, res) => {
         reason,
       );
     } else {
-      throw new Error("Invalid status");
+      throw new Error("Invalid status update requested");
     }
 
     res.json({
       success: true,
-      message: `Adoption ${status} successfully`,
+      message: `Application ${status} successfully`,
       adoption: result,
     });
   } catch (err) {
@@ -75,6 +75,15 @@ exports.getAdoptionHistory = async (req, res) => {
   }
 };
 
+exports.getBusinessAdoptions = async (req, res) => {
+  try {
+    const adoptions = await adoptionService.getAdoptionsByBusiness(req.user.id);
+    res.json({ success: true, adoptions });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.getAdoptionById = async (req, res) => {
   try {
     const adoption = await adoptionService.getAdoptionById(
@@ -89,11 +98,12 @@ exports.getAdoptionById = async (req, res) => {
 exports.markAdoptionPaid = async (req, res) => {
   try {
     const { adoptionId } = req.params;
-    const { petId } = req.body;
+    const { petId, paymentId } = req.body;
     const result = await adoptionService.finalizeAdoptionDirect(
       adoptionId,
       petId,
       req.user.id,
+      paymentId,
     );
     res.json({ success: true, adoption: result });
   } catch (err) {

@@ -101,6 +101,7 @@ services:
       - PAYMENT_EXCHANGE=payment_events_exchange
       - BUSINESS_EXCHANGE=business_events_exchange
       - PET_EXCHANGE=pet_events_exchange
+      - NOTIFICATION_EXCHANGE=notification_events_exchange
       - ADOPTION_APPROVAL_QUEUE=adoption_approval_queue
       - ADOPTION_REJECTION_QUEUE=adoption_rejection_queue
       - ADOPTION_PAYMENT_QUEUE=adoption_payment_queue
@@ -167,6 +168,7 @@ services:
       - PET_EXCHANGE=pet_events_exchange
       - ADOPTION_EXCHANGE=adoption_events_exchange
       - PAYMENT_EXCHANGE=payment_events_exchange
+      - NOTIFICATION_EXCHANGE=notification_events_exchange
       - NOTIFICATION_ADOPTION_QUEUE=notification_adoption_queue
       - NOTIFICATION_PAYMENT_QUEUE=notification_payment_queue
       - NOTIFICATION_PET_QUEUE=notification_pet_queue

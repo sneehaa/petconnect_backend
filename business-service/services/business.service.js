@@ -10,7 +10,6 @@ const { sendMail } = require("../utils/mailer.util");
 const redisClient = require("../utils/redis.client");
 
 const BUSINESS_EXCHANGE = process.env.BUSINESS_EXCHANGE;
-const ADOPTION_EXCHANGE = process.env.ADOPTION_EXCHANGE;
 
 class BusinessService {
   async sendOTP(email) {
@@ -147,6 +146,10 @@ class BusinessService {
       email: updated.email,
     });
     return updated;
+  }
+
+  async getApproved() {
+    return await businessRepo.findApproved();
   }
 
   async getById(id) {
