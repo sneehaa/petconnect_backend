@@ -13,13 +13,6 @@ dotenv.config();
 // Making express app
 const app = express();
 
-// cloudinary config
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
 // cors config to accept request from frontend
 const corsOptions = {
   origin: true,
@@ -27,6 +20,9 @@ const corsOptions = {
   optionSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
+
+
+//testing
 
 // mongodb connection
 connectDB();
