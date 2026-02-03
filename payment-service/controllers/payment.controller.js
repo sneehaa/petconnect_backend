@@ -1,6 +1,7 @@
 const paymentService = require("../services/payment.service");
 const walletService = require("../services/wallet.service");
 
+// User Payment Functions
 exports.getPaymentSummary = async (req, res) => {
   try {
     const { paymentId } = req.params;
@@ -121,6 +122,7 @@ exports.getPaymentDetails = async (req, res) => {
   }
 };
 
+// Business Payment Functions
 exports.getBusinessEarnings = async (req, res) => {
   try {
     const businessId = req.user.userId || req.user.id;
@@ -139,6 +141,30 @@ exports.getBusinessEarnings = async (req, res) => {
   }
 };
 
+exports.getBusinessWalletBalance = async (req, res) => {
+  try {
+    const businessId = req.user.userId || req.user.id;
+    const wallet = await walletService.getWalletById(businessId.toString());
+    res.json({ success: true, balance: wallet.balance });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.getBusinessTransactions = async (req, res) => {
+  try {
+    const businessId = req.user.userId || req.user.id;
+    const { page = 1, limit = 10 } = req.query;
+    const transactions = await walletService.getBusinessEarnings(
+      businessId.toString(),
+    );
+    res.json({ success: true, ...transactions });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+
 exports.getAllTransactions = async (req, res) => {
   try {
     const { page = 1, limit = 20, ...filters } = req.query;
@@ -148,6 +174,15 @@ exports.getAllTransactions = async (req, res) => {
       filters,
     );
     res.json({ success: true, transactions });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.getAllWallets = async (req, res) => {
+  try {
+    const wallets = await walletService.getAllWallets();
+    res.json({ success: true, wallets });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }

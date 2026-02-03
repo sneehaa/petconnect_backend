@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const walletSchema = new mongoose.Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: "User",
     required: true,
     unique: true,
@@ -19,7 +19,7 @@ const walletSchema = new mongoose.Schema({
   holds: [
     {
       adoptionId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         required: true,
       },
       amount: {
@@ -52,7 +52,7 @@ const walletSchema = new mongoose.Schema({
         required: true,
       },
       referenceId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         refPath: "transactions.referenceModel",
       },
       referenceModel: {

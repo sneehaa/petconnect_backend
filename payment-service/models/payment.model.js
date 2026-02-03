@@ -2,22 +2,22 @@ const mongoose = require("mongoose");
 
 const paymentSchema = new mongoose.Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: "User",
     required: true,
   },
   businessId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: "Business",
     required: true,
   },
   adoptionId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: "Adoption",
     required: true,
   },
   petId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: "Pet",
     required: true,
   },
