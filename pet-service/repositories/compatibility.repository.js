@@ -6,18 +6,23 @@ class CompatibilityRepository {
   }
 
   findByUserId(userId) {
-    return Compatibility.findOne({ userId }).sort({ createdAt: -1 });
+    return Compatibility.findOne({ userId });
   }
 
   update(userId, data) {
     return Compatibility.findOneAndUpdate({ userId }, data, {
       new: true,
       upsert: true,
+      runValidators: true,
     });
   }
 
   delete(userId) {
     return Compatibility.findOneAndDelete({ userId });
+  }
+
+  exists(userId) {
+    return Compatibility.exists({ userId });
   }
 }
 

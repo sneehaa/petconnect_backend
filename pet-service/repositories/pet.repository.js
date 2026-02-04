@@ -18,11 +18,19 @@ class PetRepository {
   }
 
   async getAll() {
-    return await Pet.find({ status: "available" });
+    return await Pet.find();
   }
 
   async findByBusiness(businessId) {
     return await Pet.find({ businessId });
+  }
+
+  async findAvailable() {
+    return await Pet.find({ status: "available" });
+  }
+
+  async exists(id) {
+    return await Pet.exists({ _id: id });
   }
 }
 

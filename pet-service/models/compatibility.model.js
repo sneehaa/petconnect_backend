@@ -5,6 +5,7 @@ const compatibilitySchema = new mongoose.Schema(
     userId: {
       type: String,
       required: true,
+      unique: true,
     },
     livingSpace: {
       type: String,
@@ -55,7 +56,7 @@ const compatibilitySchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Compatibility", compatibilitySchema);

@@ -11,7 +11,14 @@ class PaymentService {
     try {
       const transactionId = `TXN${Date.now()}${uuidv4().slice(0, 8)}`;
       const payment = await paymentRepo.createPayment(
-        { ...paymentData, transactionId, status: "pending" },
+        {
+          ...paymentData,
+          transactionId,
+          status: "pending",
+          userName: paymentData.userName,
+          userPhone: paymentData.userPhone,
+          petName: paymentData.petName,
+        },
         session,
       );
       await session.commitTransaction();
@@ -71,6 +78,8 @@ class PaymentService {
           amount: payment.amount,
           description: `Sale from adoption #${payment.adoptionId}`,
           status: "success",
+          userName: payment.userName,
+          petName: payment.petName,
         });
         await walletRepo.updateWallet(bizWallet, session);
       }
@@ -103,6 +112,11 @@ class PaymentService {
     return payment;
   }
 
+  async getPaymentByAdoptionId(adoptionId) {
+    const payment = await paymentRepo.findByAdoptionId(adoptionId);
+    return payment;
+  }
+
   async getPaymentsByUserDirect(userId, page, limit) {
     return paymentRepo.findByUserId(userId, page, limit);
   }
@@ -113,9 +127,18 @@ class PaymentService {
 
   async getBusinessStatsDirect(businessId) {
     const stats = await paymentRepo.getPaymentStats(businessId);
-    return stats[0] || { totalAmount: 0, totalTransactions: 0 };
-  }
 
+    if (stats.length > 0) {
+      return stats[0];
+    }
+
+    return {
+      businessId: businessId,
+      totalAmount: 0,
+      totalTransactions: 0,
+      averageAmount: 0,
+    };
+  }
   async getAllTransactionsDirect(page, limit, filters) {
     return paymentRepo.findAllPayments(page, limit, filters);
   }

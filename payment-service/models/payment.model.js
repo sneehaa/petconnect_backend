@@ -11,6 +11,9 @@ const paymentSchema = new mongoose.Schema({
     ref: "Business",
     required: true,
   },
+  userName: String,
+  userPhone: String,
+  petName: String,
   adoptionId: {
     type: String,
     ref: "Adoption",

@@ -1,15 +1,14 @@
 const compatibilityService = require("../services/compatibility.service");
 
-// Submit or update lifestyle questionnaire
 exports.submitQuestionnaire = async (req, res) => {
   try {
     const questionnaire = await compatibilityService.saveQuestionnaire(
       req.user.id,
-      req.body
+      req.body,
     );
     res.status(201).json({
       success: true,
-      message: "Lifestyle questionnaire saved successfully",
+      message: "Questionnaire saved successfully",
       questionnaire,
     });
   } catch (e) {
@@ -20,11 +19,10 @@ exports.submitQuestionnaire = async (req, res) => {
   }
 };
 
-// Get user's saved questionnaire
 exports.getQuestionnaire = async (req, res) => {
   try {
     const questionnaire = await compatibilityService.getQuestionnaire(
-      req.user.id
+      req.user.id,
     );
     res.json({
       success: true,
@@ -38,12 +36,11 @@ exports.getQuestionnaire = async (req, res) => {
   }
 };
 
-// Get compatibility score for a specific pet
 exports.getCompatibilityWithPet = async (req, res) => {
   try {
     const result = await compatibilityService.getCompatibilityWithPet(
       req.user.id,
-      req.params.petId
+      req.params.petId,
     );
     res.json({
       success: true,
@@ -57,15 +54,17 @@ exports.getCompatibilityWithPet = async (req, res) => {
   }
 };
 
-// Get compatibility scores for all available pets
 exports.getCompatibilityAll = async (req, res) => {
   try {
+    const { limit = 50, page = 1 } = req.query;
     const results = await compatibilityService.getCompatibilityAll(
-      req.user.id
+      req.user.id,
+      parseInt(limit),
+      parseInt(page),
     );
     res.json({
       success: true,
-      results,
+      ...results,
     });
   } catch (e) {
     res.status(400).json({
@@ -75,7 +74,6 @@ exports.getCompatibilityAll = async (req, res) => {
   }
 };
 
-// Delete user questionnaire
 exports.deleteQuestionnaire = async (req, res) => {
   try {
     await compatibilityService.deleteQuestionnaire(req.user.id);

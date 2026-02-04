@@ -1,11 +1,10 @@
 const paymentService = require("../services/payment.service");
 const walletService = require("../services/wallet.service");
 
-// User Payment Functions
 exports.getPaymentSummary = async (req, res) => {
   try {
     const { paymentId } = req.params;
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user.id;
     const payment = await paymentService.getPaymentById(paymentId);
     const wallet = await walletService.getWalletById(userId.toString());
     const canProceed = wallet.balance >= payment.amount;
@@ -25,16 +24,24 @@ exports.getPaymentSummary = async (req, res) => {
 
 exports.initiatePayment = async (req, res) => {
   try {
-    const { adoptionId, businessId, petId, amount } = req.body;
-    const userId = req.user.userId || req.user.id;
-    const payment = await paymentService.createPaymentDirect({
-      userId: userId.toString(),
-      businessId,
-      adoptionId,
-      petId,
-      amount,
+    const { adoptionId } = req.body;
+    const userId = req.user.id;
+
+    const existingPayment =
+      await paymentService.getPaymentByAdoptionId(adoptionId);
+
+    if (existingPayment) {
+      return res.json({
+        success: true,
+        message: "Payment already initiated",
+        payment: existingPayment,
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message:
+        "No payment record found. Please ensure the adoption has been approved first.",
     });
-    res.status(201).json({ success: true, payment });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }
@@ -60,7 +67,7 @@ exports.processPayment = async (req, res) => {
 exports.loadWallet = async (req, res) => {
   try {
     const { amount } = req.body;
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user.id;
     const role = req.user.role;
     const wallet = await walletService.loadMoneyDirect(
       userId.toString(),
@@ -75,7 +82,7 @@ exports.loadWallet = async (req, res) => {
 
 exports.getWalletBalance = async (req, res) => {
   try {
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user.id;
     const wallet = await walletService.getWalletById(userId.toString());
     res.json({ success: true, balance: wallet.balance });
   } catch (err) {
@@ -85,7 +92,7 @@ exports.getWalletBalance = async (req, res) => {
 
 exports.getTransactionHistory = async (req, res) => {
   try {
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user.id;
     const { page = 1, limit = 10 } = req.query;
     const history = await walletService.getUserTransactions(
       userId.toString(),
@@ -100,7 +107,7 @@ exports.getTransactionHistory = async (req, res) => {
 
 exports.getUserPayments = async (req, res) => {
   try {
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user.id;
     const { page = 1, limit = 10 } = req.query;
     const payments = await paymentService.getPaymentsByUserDirect(
       userId.toString(),
@@ -122,10 +129,9 @@ exports.getPaymentDetails = async (req, res) => {
   }
 };
 
-// Business Payment Functions
 exports.getBusinessEarnings = async (req, res) => {
   try {
-    const businessId = req.user.userId || req.user.id;
+    const businessId = req.user.id;
     const { page = 1, limit = 10 } = req.query;
     const history = await paymentService.getPaymentsByBusiness(
       businessId.toString(),
@@ -143,7 +149,7 @@ exports.getBusinessEarnings = async (req, res) => {
 
 exports.getBusinessWalletBalance = async (req, res) => {
   try {
-    const businessId = req.user.userId || req.user.id;
+    const businessId = req.user.id;
     const wallet = await walletService.getWalletById(businessId.toString());
     res.json({ success: true, balance: wallet.balance });
   } catch (err) {
@@ -153,7 +159,7 @@ exports.getBusinessWalletBalance = async (req, res) => {
 
 exports.getBusinessTransactions = async (req, res) => {
   try {
-    const businessId = req.user.userId || req.user.id;
+    const businessId = req.user.id;
     const { page = 1, limit = 10 } = req.query;
     const transactions = await walletService.getBusinessEarnings(
       businessId.toString(),
@@ -163,7 +169,6 @@ exports.getBusinessTransactions = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
-
 
 exports.getAllTransactions = async (req, res) => {
   try {

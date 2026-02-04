@@ -8,7 +8,16 @@ exports.setupEventListeners = () => {
     process.env.ADOPTION_APPROVED_PAYMENTS_QUEUE,
     "adoption.approved",
     async (data) => {
-      const { adoptionId, userId, businessId, petId, adoptionFee } = data;
+      const {
+        adoptionId,
+        userId,
+        businessId,
+        petId,
+        adoptionFee,
+        userName,
+        userPhone,
+        petName,
+      } = data;
       console.log(`[Payment Listener] Adoption approved: ${adoptionId}`);
 
       try {
@@ -18,6 +27,9 @@ exports.setupEventListeners = () => {
           adoptionId,
           petId,
           amount: adoptionFee || 0,
+          userName,
+          userPhone,
+          petName,
         });
       } catch (err) {
         console.error(`[Payment Listener] Initiation failed:`, err.message);

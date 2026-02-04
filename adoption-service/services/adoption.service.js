@@ -97,12 +97,14 @@ class AdoptionService {
     await adoption.save();
 
     await rabbitmq.publish(process.env.ADOPTION_EXCHANGE, "adoption.approved", {
-      adoptionId: adoption._id,
-      userId: adoption.userId,
-      petId: adoption.petId,
-      businessId: adoption.businessId,
-      petName: petInfo.petDetails.name,
+      adoptionId: adoption._id.toString(),
+      userId: adoption.userId.toString(),
+      businessId: adoption.businessId.toString(),
+      petId: adoption.petId.toString(),
       adoptionFee: petInfo.petDetails.amount,
+      userName: adoption.applicationDetails.fullName,
+      userPhone: adoption.applicationDetails.phoneNumber,
+      petName: petInfo.petDetails.name,
     });
 
     return adoption;
