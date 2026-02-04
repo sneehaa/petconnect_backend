@@ -1,0 +1,17 @@
+{
+  "name": "petconnect-integration-tests",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "jest --config jest.config.js --testTimeout=30000",
+    "test:simple": "jest tests/simple.test.js",
+    "test:user": "jest tests/user-service.test.js",
+    "test:pet": "jest tests/pet-service.test.js",
+    "setup": "bash scripts/setup.sh",
+    "start:services": "bash scripts/start-services.sh"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "dotenv": "^16.3.1"
+  }
+}

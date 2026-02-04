@@ -1,0 +1,12 @@
+// Load environment variables first
+require('dotenv').config({ path: '.env.test' });
+
+module.exports = {
+  testEnvironment: 'node',
+  testMatch: ['**/tests/**/*.test.js'],
+  testTimeout: 30000,
+  verbose: true,
+  forceExit: true,
+  detectOpenHandles: true,
+  setupFiles: ['<rootDir>/jest.setup.js']
+};
